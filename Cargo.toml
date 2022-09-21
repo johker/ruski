@@ -1,0 +1,17 @@
+[package]
+name = "ruski"
+version = "0.0.1"
+authors = ["johker <johannes.kern@zoho.com>"]
+edition = "2018"
+description = "Ruski is a simple implementation of SKI combinator calculus in Rust."
+repository = "https://github.com/johker/ruski/"
+license = "MIT"
+keywords = ["combinators", "functional"]
+readme = "README.md"
+categories = ["compilers"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[[bin]]
+name = "ruski"
+path = "src/main.rs"
