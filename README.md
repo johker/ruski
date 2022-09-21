@@ -1,6 +1,6 @@
 ## RuSKI
 
-RuSKI is a simple implementation of SKI combinator calculus in Rust.
+RuSKI is an artificial chemistry based on SKI combinator calculus written in Rust.
 
 
 
