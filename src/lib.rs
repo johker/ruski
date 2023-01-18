@@ -1,7 +1,5 @@
 
-#![deny(missing_docs)]
-#![deny(unsafe_code)]
+//! **ruski** is a simple implementation of SKI combinator calculus in Rust.
 
-#[macro_use]
 pub mod term;
 pub mod parser;

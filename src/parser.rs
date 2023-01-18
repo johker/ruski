@@ -1,3 +1,6 @@
+//! A parser for lambda expressions
+
+use self::ParseError::*;
 
 /// An error returned by `parse()` when a parsing issue is encountered.
 #[derive(Debug, PartialEq, Eq)]
@@ -28,13 +31,13 @@ pub enum Token {
 /// Attempts to parse the input `&str` as combinator `Term`. 
 ///
 /// # Examples
-pub fn parse(input: &str) {
+pub fn parse(_input: &str) {
     
 }
 
 #[doc(hidden)]
 pub fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
-    let chars = input.chars.enumerate();
+    let chars = input.chars().enumerate();
     let mut tokens = Vec::with_capacity(input.len());
 
     for (i, c) in chars {
@@ -64,7 +67,7 @@ mod tests {
 
     #[test]
     fn tokenize_fails_when_input_contains_invalid_characters() {
-        assert_eq!(tokenize("( S X S ( S I ) S S )"), Err(InvalidCharacter((5,'X'))));
+        assert_eq!(tokenize("( S X S ( S I ) S S )"), Err(InvalidCharacter((4,'X'))));
     }
 
     #[test]
