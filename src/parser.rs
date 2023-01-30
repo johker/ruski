@@ -1,6 +1,8 @@
 //! A parser for lambda expressions
 
-use crate::term::Term;
+use crate::term::Term::*;
+use crate::term::Combinator::*;
+use crate::term::{Combinator, Term, app};
 
 /// An error returned by `parse()` when a parsing issue is encountered.
 #[derive(Debug, PartialEq, Eq)]
@@ -33,8 +35,8 @@ pub enum Token {
 ///
 /// # Examples
 pub fn parse(input: &str) {
-    if let Ok(tokens) = tokenize(input) {
-        if let Ok(ast) = get_ast(&tokens) {
+    if let Ok(mut tokens) = tokenize(input) {
+        if let Ok(ast) = get_ast(&mut tokens) {
             // Do sth with ast
         }
     }
@@ -65,7 +67,7 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
 }
 
 #[doc(hidden)]
-pub fn get_ast(tokens: &mut Vec<Token>) -> Result<Token, ParseError> {
+pub fn get_ast(tokens: &mut Vec<Token>) -> Result<Term, ParseError> {
     if tokens.is_empty() {
         return Err(ParseError::EmptyExpression);
     }
@@ -74,17 +76,18 @@ pub fn get_ast(tokens: &mut Vec<Token>) -> Result<Token, ParseError> {
 
     while let Some(token) = tokens.pop() {
        match token {
-            Token::S => term.add(Combinator::S),
-            Token::K => term.add(Combinator::K),
-            Token::I => term.add(Combinator::I),
+            Token::S => term = Term::expand(term, Combinator::S),
+            Token::K => term = Term::expand(term, Combinator::K),
+            Token::I => term = Term::expand(term, Combinator::I),
             Token::Lparen => {
                 if let Ok(subterm) = get_ast(tokens) {
-                    term = Term::App(subterm, term);
+                    term = Term::App(Box::new((subterm, term)));
                 }
             }
-            Token::Rparen => return Ok(term);
+            Token::Rparen => return Ok(term),
        }
     }
+    return Ok(term);
 }
 
 
@@ -122,20 +125,20 @@ mod tests {
     }
 
     #[test]
-    fn succ_ast() {
-        let tokens = vec![
+    fn get_ast_generates_binary_tree() {
+        let mut tokens = vec![
+            Token::S,
+            Token::S,
+            Token::S,
             Token::Lparen,
             Token::S,
-            Token::K,
             Token::S,
-            Token::Lparen,
-            Token::S,
-            Token::I,
             Token::Rparen,
             Token::S,
             Token::S,
-            Token::Rparen
         ]; 
-        let ast = get_ast(&tokens);
+        let ast = get_ast(&mut tokens).unwrap();
+
+        assert_eq!(ast, app( app( app( app( app( Com(S), Com(S)), Com(S)), app(Com(S), Com(S))), Com(S)), Com(S)));
     }
 }
