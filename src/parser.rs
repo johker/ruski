@@ -36,7 +36,7 @@ pub enum Token {
 /// # Examples
 pub fn parse(input: &str) {
     if let Ok(mut tokens) = tokenize(input) {
-        if let Ok(ast) = get_ast(&mut tokens) {
+        if let Ok(ast) = get_ast(&mut tokens, &mut 0) {
             // Do sth with ast
         }
     }
@@ -67,25 +67,30 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
 }
 
 #[doc(hidden)]
-pub fn get_ast(tokens: &mut Vec<Token>) -> Result<Term, ParseError> {
+pub fn get_ast(tokens: &mut Vec<Token>, pos: &mut usize) -> Result<Term, ParseError> {
     if tokens.is_empty() {
         return Err(ParseError::EmptyExpression);
     }
 
     let mut term = Term::Null;
 
-    while let Some(token) = tokens.pop() {
+    // TODO : Parse from left and pass position
+    while let Some(token) = tokens.get(*pos) {
+       println!("Pos = {}, Token = {:?}", pos, token);
        match token {
             Token::S => term = Term::expand(term, Combinator::S),
             Token::K => term = Term::expand(term, Combinator::K),
             Token::I => term = Term::expand(term, Combinator::I),
             Token::Lparen => {
-                if let Ok(subterm) = get_ast(tokens) {
-                    term = Term::App(Box::new((subterm, term)));
+                *pos += 1;
+                if let Ok(subterm) = get_ast(tokens, pos) {
+                    term = app(term, subterm);
                 }
             }
             Token::Rparen => return Ok(term),
        }
+       println!("Term = {:?}", term);
+       *pos += 1;
     }
     return Ok(term);
 }
@@ -137,7 +142,7 @@ mod tests {
             Token::S,
             Token::S,
         ]; 
-        let ast = get_ast(&mut tokens).unwrap();
+        let ast = get_ast(&mut tokens, &mut 0).unwrap();
 
         assert_eq!(ast, app( app( app( app( app( Com(S), Com(S)), Com(S)), app(Com(S), Com(S))), Com(S)), Com(S)));
     }
