@@ -46,9 +46,6 @@ impl Term {
 /// # Example
 /// ```
 /// use ruski::*;
-/// use ruski::term::Term::*;
-/// use ruski::term::Combinator::*;
-/// use ruski::term::{Combinator, Term, app};
 ///
 /// assert_eq!(app(Com(S), Com(K)), App((Box::new((Com(S), Com(K))))));
 /// ```
