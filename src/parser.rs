@@ -74,7 +74,6 @@ pub fn get_ast(tokens: &mut Vec<Token>, pos: &mut usize) -> Result<Term, ParseEr
 
     let mut term = Term::Null;
 
-    // TODO : Parse from left and pass position
     while let Some(token) = tokens.get(*pos) {
        println!("Pos = {}, Token = {:?}", pos, token);
        match token {

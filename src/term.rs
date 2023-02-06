@@ -31,6 +31,14 @@ impl Term {
     /// Adds a combinator to a term either as an abstraction or
     /// as application depending on the current state of the term.
     /// The argument is consumed in the process. 
+    ///
+    /// # Example
+    /// ```
+    /// use ruski::*;
+    ///
+    /// assert_eq!(Term::expand(Term::Null, Combinator::S), Com(S));
+    /// assert_eq!(Term::expand(Com(S), Combinator::S), App(Box::new((Com(S), Com(S)))));
+    /// ```
     pub fn expand(term: Term, combinator: Combinator) -> Term {
         match term {
             Term::Null => Com(combinator), 
