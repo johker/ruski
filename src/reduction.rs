@@ -49,6 +49,11 @@ impl Term {
     }
 
    fn reduce_lo(&mut self, limit: usize, count: &mut usize) {
-        
+       if limit != 0 && *count == limit {
+           return;
+       }
    }
+
+
+   
 }
