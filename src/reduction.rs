@@ -1,5 +1,6 @@
 
 pub use self::Order::*;
+pub use self::RuleType::*;
 use crate::term::Term::*;
 use crate::term::Term;
 
@@ -25,6 +26,17 @@ pub enum Order {
     IR,
 }
 
+/// Describes the Rule that applies to a node 
+/// in an AST
+#[derive(Debug, PartialEq, Eq)]
+pub enum RuleType {
+   // S Rule
+    SReducible,
+    // K Rule
+    KReducible,
+    // Not reducible
+    Irreducible, 
+}
 
 impl Term {
 
@@ -55,5 +67,50 @@ impl Term {
    }
 
 
-   
+    /// Checks if the term can be reduced at the top level.
+    /// If it can be reduced the rule type that applies is
+    /// returned.
+    ///
+    /// # Example
+    /// ```
+    /// use ruski::*;
+    ///
+    /// ```
+    pub fn is_reducible(&self) -> RuleType {
+        if let Ok(lhs) = self.lhs_ref() {
+            match lhs {
+                Com(x) => {
+                    match x {
+                        K => return RuleType::KReducible,
+                        _ => (),
+                    }
+                },
+                App(boxed) => {
+                    let (ref lhs, ref rhs) = **boxed;
+                    match lhs {
+                        Com(x) => {
+                            match x {
+                                S => return RuleType::SReducible,
+                                _ => (),
+                            }
+                        },
+                        _ => (),
+                    }
+                },
+                _ => (),
+            }
+        }
+        return RuleType::Irreducible;
+    }
+
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*; 
+
+    #[test]
+    fn term_is_marked_as_reducible() {
+        assert_eq!(app(app(app(Com(S), Com(I)), Com(I)), Com(K)).is_reducible(), RuleType::SReducible);
+    }
 }
