@@ -4,7 +4,6 @@ pub use self::RuleType::*;
 use crate::term::Term::*;
 use crate::term::Combinator::*;
 use crate::term::Term;
-use crate::term::app;
 
 /// The [evaluation
 /// order](https://writings.stephenwolfram.com/2020/12/combinators-a-centennial-view/#the-question-of-evaluation-order)
@@ -66,8 +65,18 @@ impl Term {
        if limit != 0 && *count == limit {
            return;
        }
+
+       match self.is_reducible(limit, *count) {
+            RuleType::SReducible =>  
+       }
    }
 
+   pub fn apply_srule(&mut self) {
+        let z = self.rhs_ref().unwrap().clone();
+        let y = self.lhs_ref().unwrap().rhs_ref().unwrap().clone();
+        let z = self.lhs_ref().unwrap().lhs_ref().unwrap().rhs_ref().unwrap().clone();
+
+   }
 
     /// Checks if the term can be reduced at the top level.
     /// If it can be reduced the rule type that applies is
@@ -76,6 +85,8 @@ impl Term {
     /// # Example
     /// ```
     /// use ruski::*;
+    ///
+    /// assert_eq!(app(app(app(Com(S), Com(I)), Com(I)), Com(K)).is_reducible(), RuleType::SReducible);
     ///
     /// ```
     pub fn is_reducible(&self) -> RuleType {
@@ -89,7 +100,7 @@ impl Term {
                         }
                     },
                     App(boxed) => {
-                        let (ref lhs, ref rhs) = **boxed;
+                        let (ref lhs, ref _rhs) = **boxed;
                         match lhs {
                             Com(x) => {
                                 match x {
@@ -106,15 +117,16 @@ impl Term {
         }
         return RuleType::Irreducible;
     }
-
 }
 
 #[cfg(test)]
 mod tests {
     use super::*; 
+    use crate::term::app;
 
     #[test]
     fn term_is_marked_as_reducible() {
         assert_eq!(app(app(app(Com(S), Com(I)), Com(I)), Com(K)).is_reducible(), RuleType::SReducible);
+        assert_eq!(app(app(Com(K), Com(I)), Com(I)).is_reducible(), RuleType::KReducible);
     }
 }

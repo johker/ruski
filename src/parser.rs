@@ -36,7 +36,7 @@ pub enum Token {
 /// # Examples
 pub fn parse(input: &str) {
     if let Ok(mut tokens) = tokenize(input) {
-        if let Ok(ast) = get_ast(&mut tokens, &mut 0) {
+        if let Ok(_ast) = get_ast(&mut tokens, &mut 0) {
             // Do sth with ast
         }
     }
