@@ -2,7 +2,9 @@
 pub use self::Order::*;
 pub use self::RuleType::*;
 use crate::term::Term::*;
+use crate::term::Combinator::*;
 use crate::term::Term;
+use crate::term::app;
 
 /// The [evaluation
 /// order](https://writings.stephenwolfram.com/2020/12/combinators-a-centennial-view/#the-question-of-evaluation-order)
@@ -78,26 +80,28 @@ impl Term {
     /// ```
     pub fn is_reducible(&self) -> RuleType {
         if let Ok(lhs) = self.lhs_ref() {
-            match lhs {
-                Com(x) => {
-                    match x {
-                        K => return RuleType::KReducible,
-                        _ => (),
-                    }
-                },
-                App(boxed) => {
-                    let (ref lhs, ref rhs) = **boxed;
-                    match lhs {
-                        Com(x) => {
-                            match x {
-                                S => return RuleType::SReducible,
-                                _ => (),
-                            }
-                        },
-                        _ => (),
-                    }
-                },
-                _ => (),
+            if let Ok(llhs) = lhs.lhs_ref() {
+                match llhs {
+                    Com(x) => {
+                        match x {
+                            K => return RuleType::KReducible,
+                            _ => (),
+                        }
+                    },
+                    App(boxed) => {
+                        let (ref lhs, ref rhs) = **boxed;
+                        match lhs {
+                            Com(x) => {
+                                match x {
+                                    S => return RuleType::SReducible,
+                                    _ => (),
+                                }
+                            },
+                            _ => (),
+                        }
+                    },
+                    _ => (),
+                }
             }
         }
         return RuleType::Irreducible;

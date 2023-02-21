@@ -1,7 +1,7 @@
 //! A parser for lambda expressions
 
-use crate::term::Term::*;
-use crate::term::Combinator::*;
+
+
 use crate::term::{Combinator, Term, app, expand};
 
 /// An error returned by `parse()` when a parsing issue is encountered.
@@ -98,6 +98,8 @@ pub fn get_ast(tokens: &mut Vec<Token>, pos: &mut usize) -> Result<Term, ParseEr
 #[cfg(test)]
 mod tests {
     use super::*; 
+    use crate::term::Term::*;
+    use crate::term::Combinator::*;
 
     #[test]
     fn tokenize_fails_when_input_contains_invalid_characters() {
