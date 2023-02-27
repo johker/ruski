@@ -5,7 +5,7 @@ use self::TermError::*;
 
 /// A combinator term is either a variable representing a combinatory term, a base
 /// (S, K or I) or an application of one term to another. 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Term {
     /// Empty Term
     Null,
@@ -16,7 +16,7 @@ pub enum Term {
 }
 
 /// Base symbols for the compuational system
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Combinator {
     /// Starling - S - Combinator
     S,
@@ -37,6 +37,64 @@ pub enum TermError {
 }
 
 impl Term {
+
+    /// Returns a pair containing an application's underlying terms, consuming it in the process.
+    ///
+    /// # Example
+    /// ```
+    /// use ruski::*;
+    ///
+    /// assert_eq!(app(Com(S), Com(K)).unapp(), Ok((Com(S), Com(K))));
+    /// ```
+    /// # Errors
+    ///
+    /// Returns a `TermError` if `self` is not an `App`lication.
+    pub fn unapp(self) -> Result<(Term, Term), TermError> {
+        if let App(boxed) = self {
+            let (lhs, rhs) = *boxed;
+            Ok((lhs, rhs))
+        } else {
+            Err(NotApp)
+        }
+    }
+
+    /// Returns the left-hand side term of an application. Consumes `self`.
+    ///
+    /// # Example
+    /// ```
+    /// use ruski::*;
+    ///
+    /// assert_eq!(app(Com(S), Com(K)).lhs(), Ok(Com(S)));
+    /// ```
+    /// # Errors
+    ///
+    /// Returns a `TermError` if `self` is not an `App`lication.
+    pub fn lhs(self) -> Result<Term, TermError> {
+        if let Ok((lhs, _)) = self.unapp() {
+            Ok(lhs)
+        } else {
+            Err(NotApp)
+        }
+    }
+
+    /// Returns the right-hand side term of an application. Consumes `self`.
+    ///
+    /// # Example
+    /// ```
+    /// use ruski::*;
+    ///
+    /// assert_eq!(app(Com(S), Com(K)).rhs(), Ok(Com(K)));
+    /// ```
+    /// # Errors
+    ///
+    /// Returns a `TermError` if `self` is not an `App`lication.
+    pub fn rhs(self) -> Result<Term, TermError> {
+        if let Ok((_, rhs)) = self.unapp() {
+            Ok(rhs)
+        } else {
+            Err(NotApp)
+        }
+    }
 
     /// Returns a pair containing references to an application's underlying terms.
     ///

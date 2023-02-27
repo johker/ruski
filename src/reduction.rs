@@ -4,6 +4,9 @@ pub use self::RuleType::*;
 use crate::term::Term::*;
 use crate::term::Combinator::*;
 use crate::term::Term;
+use crate::term::TermError;
+use crate::term::app;
+use std::mem;
 
 /// The [evaluation
 /// order](https://writings.stephenwolfram.com/2020/12/combinators-a-centennial-view/#the-question-of-evaluation-order)
@@ -66,18 +69,23 @@ impl Term {
            return;
        }
 
-       match self.is_reducible(limit, *count) {
-            RuleType::SReducible =>  
-       }
+       //match self.is_reducible(limit, *count) {
+       //     RuleType::SReducible =>  
+       //}
    }
 
-   pub fn apply_srule(&mut self) {
-        let z = self.rhs_ref().unwrap().clone();
-        let y = self.lhs_ref().unwrap().rhs_ref().unwrap().clone();
-        let z = self.lhs_ref().unwrap().lhs_ref().unwrap().rhs_ref().unwrap().clone();
-
-   }
-
+    /// Applies the S combinator to the term. This function 
+    /// can only be safely executed if the term is SReducible.
+    fn apply_srule(&mut self) -> Result<(), TermError> { 
+        let to_apply = mem::replace(self, Null);
+        let (lhs, rhs) = to_apply.unapp()?;
+        let (llhs, rlhs) = lhs.unapp()?;
+        let (_, rllhs) = llhs.unapp()?;
+        let new_term = app(app(rllhs,rhs.clone()), app(rlhs,rhs));
+        let _is_null = mem::replace(self, new_term);
+        Ok(())
+    }
+  
     /// Checks if the term can be reduced at the top level.
     /// If it can be reduced the rule type that applies is
     /// returned.
@@ -122,11 +130,18 @@ impl Term {
 #[cfg(test)]
 mod tests {
     use super::*; 
-    use crate::term::app;
 
     #[test]
     fn term_is_marked_as_reducible() {
         assert_eq!(app(app(app(Com(S), Com(I)), Com(I)), Com(K)).is_reducible(), RuleType::SReducible);
         assert_eq!(app(app(Com(K), Com(I)), Com(I)).is_reducible(), RuleType::KReducible);
+    }
+
+
+    #[test]
+    fn term_is_reduced_by_srule() {
+        let mut test_term = app(app(app(Com(S), Com(I)), Com(I)), Com(K));
+        assert_eq!(test_term.apply_srule(), Ok(()));
+        assert_eq!(test_term, app(app(Com(I), Com(K)), app(Com(I), Com(K))));
     }
 }
