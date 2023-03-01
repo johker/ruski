@@ -3,9 +3,7 @@ pub use self::Order::*;
 pub use self::RuleType::*;
 use crate::term::Term::*;
 use crate::term::Combinator::*;
-use crate::term::Term;
-use crate::term::TermError;
-use crate::term::app;
+use crate::term::{Term, TermError, app};
 use std::mem;
 
 /// The [evaluation
@@ -86,6 +84,17 @@ impl Term {
         Ok(())
     }
   
+    /// Applies the K combinator to the term. This function 
+    /// can only be safely executed if the term is KReducible.
+    fn apply_krule(&mut self) -> Result<(), TermError> { 
+        // TODO
+        let to_apply = mem::replace(self, Null);
+        let (lhs, rhs) = to_apply.unapp()?;
+        let (_, rlhs) = lhs.unapp()?;
+        let _is_null = mem::replace(self, rlhs);
+        Ok(())
+    }
+
     /// Checks if the term can be reduced at the top level.
     /// If it can be reduced the rule type that applies is
     /// returned.
@@ -143,5 +152,12 @@ mod tests {
         let mut test_term = app(app(app(Com(S), Com(I)), Com(I)), Com(K));
         assert_eq!(test_term.apply_srule(), Ok(()));
         assert_eq!(test_term, app(app(Com(I), Com(K)), app(Com(I), Com(K))));
+    }
+
+    #[test]
+    fn term_is_reduced_by_krule() {
+        let mut test_term = app(app(Com(K), Com(S)), Com(I));
+        assert_eq!(test_term.apply_krule(), Ok(()));
+        assert_eq!(test_term, Com(S));
     }
 }
