@@ -58,44 +58,6 @@ impl Term {
         }
     }
 
-    /// Returns the left-hand side term of an application. Consumes `self`.
-    ///
-    /// # Example
-    /// ```
-    /// use ruski::*;
-    ///
-    /// assert_eq!(app(Com(S), Com(K)).lhs(), Ok(Com(S)));
-    /// ```
-    /// # Errors
-    ///
-    /// Returns a `TermError` if `self` is not an `App`lication.
-    pub fn lhs(self) -> Result<Term, TermError> {
-        if let Ok((lhs, _)) = self.unapp() {
-            Ok(lhs)
-        } else {
-            Err(NotApp)
-        }
-    }
-
-    /// Returns the right-hand side term of an application. Consumes `self`.
-    ///
-    /// # Example
-    /// ```
-    /// use ruski::*;
-    ///
-    /// assert_eq!(app(Com(S), Com(K)).rhs(), Ok(Com(K)));
-    /// ```
-    /// # Errors
-    ///
-    /// Returns a `TermError` if `self` is not an `App`lication.
-    pub fn rhs(self) -> Result<Term, TermError> {
-        if let Ok((_, rhs)) = self.unapp() {
-            Ok(rhs)
-        } else {
-            Err(NotApp)
-        }
-    }
-
     /// Returns a pair containing references to an application's underlying terms.
     ///
     /// # Example
@@ -111,44 +73,6 @@ impl Term {
         if let App(boxed) = self {
             let (ref lhs, ref rhs) = **boxed;
             Ok((lhs, rhs))
-        } else {
-            Err(NotApp)
-        }
-    }
-
-    /// Returns a reference to the left-hand side term of an application.
-    ///
-    /// # Example
-    /// ```
-    /// use ruski::*;
-    ///
-    /// assert_eq!(app(Com(S), Com(K)).lhs_ref(), Ok(&Com(S)));
-    /// ```
-    /// # Errors
-    ///
-    /// Returns a `TermError` if `self` is not an `App`lication.
-    pub fn lhs_ref(&self) -> Result<&Term, TermError> {
-        if let Ok((lhs, _)) = self.unapp_ref() {
-            Ok(lhs)
-        } else {
-            Err(NotApp)
-        }
-    }
-
-    /// Returns a reference to the right-hand side term of an application.
-    ///
-    /// # Example
-    /// ```
-    /// use ruski::*;
-    ///
-    /// assert_eq!(app(Com(S), Com(K)).rhs_ref(), Ok(&Com(K)));
-    /// ```
-    /// # Errors
-    ///
-    /// Returns a `TermError` if `self` is not an `App`lication.
-    pub fn rhs_ref(&self) -> Result<&Term, TermError> {
-        if let Ok((_, rhs)) = self.unapp_ref() {
-            Ok(rhs)
         } else {
             Err(NotApp)
         }

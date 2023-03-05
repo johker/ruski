@@ -36,8 +36,10 @@ pub enum RuleType {
     SReducible,
     // K Rule
     KReducible,
+    // I Rule, 
+    IReducible,
     // Not reducible
-    Irreducible, 
+    NotReducible, 
 }
 
 impl Term {
@@ -87,11 +89,19 @@ impl Term {
     /// Applies the K combinator to the term. This function 
     /// can only be safely executed if the term is KReducible.
     fn apply_krule(&mut self) -> Result<(), TermError> { 
-        // TODO
         let to_apply = mem::replace(self, Null);
-        let (lhs, rhs) = to_apply.unapp()?;
+        let (lhs, _) = to_apply.unapp()?;
         let (_, rlhs) = lhs.unapp()?;
         let _is_null = mem::replace(self, rlhs);
+        Ok(())
+    }
+
+    /// Applies the I combinator to the term. This function 
+    /// can only be safely executed if the term is IReducible.
+    fn apply_irule(&mut self) -> Result<(), TermError> { 
+        let to_apply = mem::replace(self, Null);
+        let (_, rhs) = to_apply.unapp()?;
+        let _is_null = mem::replace(self, rhs);
         Ok(())
     }
 
@@ -107,8 +117,17 @@ impl Term {
     ///
     /// ```
     pub fn is_reducible(&self) -> RuleType {
-        if let Ok(lhs) = self.lhs_ref() {
-            if let Ok(llhs) = lhs.lhs_ref() {
+        if let Ok((lhs, _)) = self.unapp_ref() {
+            match lhs {
+                Com(x) => {
+                    match x {
+                        I => return RuleType::IReducible,
+                        _ => (),
+                    }
+                },
+                _ => (),
+            }
+            if let Ok((llhs, _)) = lhs.unapp_ref() {
                 match llhs {
                     Com(x) => {
                         match x {
@@ -132,7 +151,7 @@ impl Term {
                 }
             }
         }
-        return RuleType::Irreducible;
+        return RuleType::NotReducible;
     }
 }
 
@@ -144,8 +163,8 @@ mod tests {
     fn term_is_marked_as_reducible() {
         assert_eq!(app(app(app(Com(S), Com(I)), Com(I)), Com(K)).is_reducible(), RuleType::SReducible);
         assert_eq!(app(app(Com(K), Com(I)), Com(I)).is_reducible(), RuleType::KReducible);
+        assert_eq!(app(Com(I), Com(K)).is_reducible(), RuleType::IReducible);
     }
-
 
     #[test]
     fn term_is_reduced_by_srule() {
@@ -159,5 +178,12 @@ mod tests {
         let mut test_term = app(app(Com(K), Com(S)), Com(I));
         assert_eq!(test_term.apply_krule(), Ok(()));
         assert_eq!(test_term, Com(S));
+    }
+
+    #[test]
+    fn term_is_reduced_by_irule() {
+        let mut test_term = app(Com(I), Com(K));
+        assert_eq!(test_term.apply_irule(), Ok(()));
+        assert_eq!(test_term, Com(K));
     }
 }
