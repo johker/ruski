@@ -95,36 +95,39 @@ impl Term {
 
     /// Applies the S combinator to the term. This function 
     /// can only be safely executed if the term is SReducible.
-    fn apply_srule(&mut self, count: &mut usize) -> Result<(), TermError> { 
+    fn apply_srule(&mut self, count: &mut usize) { 
         let to_apply = mem::replace(self, Null);
-        let (lhs, rhs) = to_apply.unapp()?;
-        let (llhs, rlhs) = lhs.unapp()?;
-        let (_, rllhs) = llhs.unapp()?;
-        let new_term = app(app(rllhs,rhs.clone()), app(rlhs,rhs));
-        let _is_null = mem::replace(self, new_term);
-        *count += 1;
-        Ok(())
+        if let Ok((lhs, rhs)) = to_apply.unapp() {
+            if let Ok((llhs, rlhs)) = lhs.unapp() {
+                if let Ok((_, rllhs)) = llhs.unapp() {
+                    let new_term = app(app(rllhs,rhs.clone()), app(rlhs,rhs));
+                    let _is_null = mem::replace(self, new_term);
+                    *count += 1;
+                }
+            }
+        }
     }
   
     /// Applies the K combinator to the term. This function 
     /// can only be safely executed if the term is KReducible.
-    fn apply_krule(&mut self, count: &mut usize) -> Result<(), TermError> { 
+    fn apply_krule(&mut self, count: &mut usize) { 
         let to_apply = mem::replace(self, Null);
-        let (lhs, _) = to_apply.unapp()?;
-        let (_, rlhs) = lhs.unapp()?;
-        let _is_null = mem::replace(self, rlhs);
-        *count += 1;
-        Ok(())
+        if let Ok((lhs, _)) = to_apply.unapp() {
+            if let Ok((_, rlhs)) = lhs.unapp() {
+                let _is_null = mem::replace(self, rlhs);
+                *count += 1;
+            }
+        }
     }
 
     /// Applies the I combinator to the term. This function 
     /// can only be safely executed if the term is IReducible.
-    fn apply_irule(&mut self, count: &mut usize) -> Result<(), TermError> { 
+    fn apply_irule(&mut self, count: &mut usize) { 
         let to_apply = mem::replace(self, Null);
-        let (_, rhs) = to_apply.unapp()?;
-        let _is_null = mem::replace(self, rhs);
-        *count += 1;
-        Ok(())
+        if let Ok((_, rhs)) = to_apply.unapp(){
+            let _is_null = mem::replace(self, rhs);
+            *count += 1;
+        }
     }
 
     /// Checks if the term can be reduced at the top level.
@@ -191,21 +194,21 @@ mod tests {
     #[test]
     fn term_is_reduced_by_srule() {
         let mut test_term = app(app(app(Com(S), Com(I)), Com(I)), Com(K));
-        assert_eq!(test_term.apply_srule(&mut 0), Ok(()));
+        test_term.apply_srule(&mut 0);
         assert_eq!(test_term, app(app(Com(I), Com(K)), app(Com(I), Com(K))));
     }
 
     #[test]
     fn term_is_reduced_by_krule() {
         let mut test_term = app(app(Com(K), Com(S)), Com(I));
-        assert_eq!(test_term.apply_krule(&mut 0), Ok(()));
+        test_term.apply_krule(&mut 0);
         assert_eq!(test_term, Com(S));
     }
 
     #[test]
     fn term_is_reduced_by_irule() {
         let mut test_term = app(Com(I), Com(K));
-        assert_eq!(test_term.apply_irule(&mut 0), Ok(()));
+        test_term.apply_irule(&mut 0);
         assert_eq!(test_term, Com(K));
     }
 }
