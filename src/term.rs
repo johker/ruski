@@ -58,6 +58,26 @@ impl Term {
         }
     }
 
+    /// Returns a pair containing mutable references to an application's underlying terms.
+    ///
+    /// # Example
+    /// ```
+    /// use ruski::*;
+    ///
+    /// assert_eq!(app(Com(S), Com(K)).unapp_mut(), Ok((&mut Com(S), &mut Com(K))));
+    /// ```
+    /// # Errors
+    ///
+    /// Returns a `TermError` if `self` is not an `App`lication.
+    pub fn unapp_mut(&mut self) -> Result<(&mut Term, &mut Term), TermError> {
+        if let App(boxed) = self {
+            let (ref mut lhs, ref mut rhs) = **boxed;
+            Ok((lhs, rhs))
+        } else {
+            Err(NotApp)
+        }
+    }
+
     /// Returns a pair containing references to an application's underlying terms.
     ///
     /// # Example
