@@ -5,7 +5,7 @@ use self::TermError::*;
 
 /// A combinator term is either a variable representing a combinatory term, a base
 /// (S, K or I) or an application of one term to another. 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Term {
     /// Empty Term
     Null,
@@ -16,7 +16,7 @@ pub enum Term {
 }
 
 /// Base symbols for the compuational system
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Combinator {
     /// Starling - S - Combinator
     S,

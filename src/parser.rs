@@ -19,7 +19,7 @@ pub enum ParseError {
 #[doc(hidden)]
 pub enum Token {
     ///  Starling Symbol
-    S, 
+    S,
     /// Kestrel Symbol
     K,
     /// Idiot Symbol
@@ -147,4 +147,6 @@ mod tests {
 
         assert_eq!(ast, app( app( app( app( app( Com(S), Com(S)), Com(S)), app(Com(S), Com(S))), Com(S)), Com(S)));
     }
+
+
 }

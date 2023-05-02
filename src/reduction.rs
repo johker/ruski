@@ -3,7 +3,7 @@ pub use self::Order::*;
 pub use self::RuleType::*;
 use crate::term::Term::*;
 use crate::term::Combinator::*;
-use crate::term::{Term, TermError, app};
+use crate::term::{Term, app};
 use std::mem;
 
 /// The [evaluation
@@ -53,7 +53,7 @@ impl Term {
         let mut count = 0;
         match order {
             LO => self.reduce_lo(limit, &mut count),
-            LI => self.reduce_lo(limit, &mut count),
+            LI => self.reduce_li(limit, &mut count),
             RO => self.reduce_lo(limit, &mut count),
             RI => self.reduce_lo(limit, &mut count),
             OL => self.reduce_lo(limit, &mut count),
@@ -64,32 +64,74 @@ impl Term {
         count
     }
 
-   fn reduce_lo(&mut self, limit: usize, count: &mut usize) {
-       if limit != 0 && *count == limit {
-           return;
+    fn reduce_li(&mut self, limit: usize, count: &mut usize) { 
+        if limit != 0 && *count == limit {
+            return;
+        }
+
+        if let Ok((ref mut lhs_ref, ref mut rhs_ref)) = self.unapp_mut() {
+            lhs_ref.reduce_li(limit, count);
+            rhs_ref.reduce_li(limit, count);
+        }
+
+        if let App(_) = *self {
+
+        }
+    }
+
+
+    /// Count matches of SKI rule by traversing the tree
+    pub fn count_matches(&self, limit: usize, count: &mut usize) {
+        if limit != 0 && *count == limit {
+            return;
+        }
+        if let App(_) = *self {
+            match self.is_reducible() {
+                RuleType::SReducible => {
+                    *count += 1;
+                },
+                RuleType::KReducible => {
+                    *count += 1;
+                },
+                RuleType::IReducible => {
+                    *count += 1;
+                },
+                RuleType::NotReducible => {
+                    // Do nothing 
+                },
+            }
+            if let Ok((lhs_ref, rhs_ref)) = self.unapp_ref() {
+                lhs_ref.count_matches(limit, count);
+                rhs_ref.count_matches(limit, count);
+            }
        }
 
-       match *self {
-            App(_) => {
-                match self.is_reducible() {
-                    RuleType::SReducible => {
-                        self.apply_srule(count);
-                    },
-                    RuleType::KReducible => {
-                        self.apply_krule(count);
-                    },
-                    RuleType::IReducible => {
-                        self.apply_irule(count);
-                    },
-                    RuleType::NotReducible => {
-                        if let Ok((ref mut lhs_ref, ref mut rhs_ref)) = self.unapp_mut() {
-                            lhs_ref.reduce_lo(limit, count);
-                            rhs_ref.reduce_lo(limit, count);
-                        }
-                    },
-                }
-            },
-            _ => (),
+    }
+
+
+    fn reduce_lo(&mut self, limit: usize, count: &mut usize) {
+        if limit != 0 && *count == limit {
+            return;
+        }
+
+        if let App(_) = *self {
+            match self.is_reducible() {
+                RuleType::SReducible => {
+                    self.apply_srule(count);
+                },
+                RuleType::KReducible => {
+                    self.apply_krule(count);
+                },
+                RuleType::IReducible => {
+                    self.apply_irule(count);
+                },
+                RuleType::NotReducible => {
+                    if let Ok((ref mut lhs_ref, ref mut rhs_ref)) = self.unapp_mut() {
+                        lhs_ref.reduce_lo(limit, count);
+                        rhs_ref.reduce_lo(limit, count);
+                    }
+                },
+            }
        }
    }
 
@@ -210,5 +252,16 @@ mod tests {
         let mut test_term = app(Com(I), Com(K));
         test_term.apply_irule(&mut 0);
         assert_eq!(test_term, Com(K));
+    }
+
+    #[test]
+    fn matches_are_counted_correctly() {
+        let lterm = app(app(app(Com(S),app(app(app(Com(S),Com(S)),Com(S)),app(app(app(Com(S),Com(S)),app(app(Com(K),Com(K)),Com(S))),Com(S)))),Com(S)),Com(S));
+        let rterm = app(app(app(Com(S),app(app(Com(K),Com(S)), Com(K))),Com(K)), Com(S));
+        let test_term = app(lterm, rterm);
+        let mut matches = 0;
+        let limit = 100;
+        test_term.count_matches(limit, &mut matches);
+        assert_eq!(matches, 6);
     }
 }
