@@ -42,6 +42,27 @@ pub enum RuleType {
     NotReducible, 
 }
 
+pub struct Matches {
+    s: usize,
+    k: usize,
+    i: usize,
+}
+
+impl Matches {
+
+    pub fn new() -> Self {
+        Matches {
+            s: 0,
+            k: 0,
+            i: 0,
+        }
+    }
+
+    pub fn sum(&self) -> usize {
+       self.s + self.k + self.i
+    }
+}
+
 impl Term {
 
     /// Performs a reduction on a `Term` with the specified evaluation `Order` and
@@ -81,28 +102,28 @@ impl Term {
 
 
     /// Count matches of SKI rule by traversing the tree
-    pub fn count_matches(&self, limit: usize, count: &mut usize) {
-        if limit != 0 && *count == limit {
+    pub fn count_matches(&self, limit: usize, matches: &mut Matches) {
+        if limit != 0 && matches.sum() == limit {
             return;
         }
         if let App(_) = *self {
             match self.is_reducible() {
                 RuleType::SReducible => {
-                    *count += 1;
+                    matches.s += 1;
                 },
                 RuleType::KReducible => {
-                    *count += 1;
+                    matches.k += 1;
                 },
                 RuleType::IReducible => {
-                    *count += 1;
+                    matches.i += 1;
                 },
                 RuleType::NotReducible => {
                     // Do nothing 
                 },
             }
             if let Ok((lhs_ref, rhs_ref)) = self.unapp_ref() {
-                lhs_ref.count_matches(limit, count);
-                rhs_ref.count_matches(limit, count);
+                lhs_ref.count_matches(limit, matches);
+                rhs_ref.count_matches(limit, matches);
             }
        }
 
@@ -259,9 +280,9 @@ mod tests {
         let lterm = app(app(app(Com(S),app(app(app(Com(S),Com(S)),Com(S)),app(app(app(Com(S),Com(S)),app(app(Com(K),Com(K)),Com(S))),Com(S)))),Com(S)),Com(S));
         let rterm = app(app(app(Com(S),app(app(Com(K),Com(S)), Com(K))),Com(K)), Com(S));
         let test_term = app(lterm, rterm);
-        let mut matches = 0;
+        let mut matches = Matches::new();
         let limit = 100;
         test_term.count_matches(limit, &mut matches);
-        assert_eq!(matches, 6);
+        assert_eq!(matches.sum(), 6);
     }
 }
