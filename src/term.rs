@@ -9,22 +9,16 @@ use self::TermError::*;
 pub enum Term {
     /// Empty Term
     Null,
-    /// Combinator 
-    Com(Combinator),
-    /// Application
-    App(Box<(Term, Term)>), 
-}
-
-/// Base symbols for the compuational system
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum Combinator {
     /// Starling - S - Combinator
     S,
     /// Kestrel - K - Combinator
     K,
     /// Idiot - I - Combinator
     I,
+    /// Application
+    App(Box<(Term, Term)>), 
 }
+
 
 
 /// An error that can be returned when an inapplicable function is applied to a `Term`.
@@ -44,7 +38,7 @@ impl Term {
     /// ```
     /// use ruski::*;
     ///
-    /// assert_eq!(app(Com(S), Com(K)).unapp(), Ok((Com(S), Com(K))));
+    /// assert_eq!(app(S, K).unapp(), Ok((S, K)));
     /// ```
     /// # Errors
     ///
@@ -64,7 +58,7 @@ impl Term {
     /// ```
     /// use ruski::*;
     ///
-    /// assert_eq!(app(Com(S), Com(K)).unapp_mut(), Ok((&mut Com(S), &mut Com(K))));
+    /// assert_eq!(app(S, K).unapp_mut(), Ok((&mut S, &mut K)));
     /// ```
     /// # Errors
     ///
@@ -84,7 +78,7 @@ impl Term {
     /// ```
     /// use ruski::*;
     ///
-    /// assert_eq!(app(Com(S), Com(K)).unapp_ref(), Ok((&Com(S), &Com(K))));
+    /// assert_eq!(app(S, K).unapp_ref(), Ok((&S, &K)));
     /// ```
     /// # Errors
     ///
@@ -111,20 +105,20 @@ impl Term {
 /// ```
 /// use ruski::*;
 ///
-/// assert_eq!(expand(Term::Null, Combinator::S), Com(S));
-/// assert_eq!(expand(Com(S), Combinator::S), app(Com(S), Com(S)));
+/// assert_eq!(expand(Null, S), S);
+/// assert_eq!(expand(S, S), app(S, S));
 /// ```
-pub fn expand(term: Term, combinator: Combinator) -> Term {
-    match term {
-        Term::Null => Com(combinator), 
-        _ => app(term, Com(combinator)),
+pub fn expand(lterm: Term, rterm: Term) -> Term {
+    match lterm {
+        Term::Null => rterm,
+        _ => app(lterm, rterm),
     }
 }
 
 /// ```
 /// use ruski::*;
 ///
-/// assert_eq!(app(Com(S), Com(K)), App((Box::new((Com(S), Com(K))))));
+/// assert_eq!(app(S, K), App((Box::new((S, K)))));
 /// ```
 pub fn app(lhs: Term, rhs: Term) -> Term {
     App(Box::new((lhs, rhs)))

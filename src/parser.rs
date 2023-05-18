@@ -2,7 +2,8 @@
 
 
 
-use crate::term::{Combinator, Term, app, expand};
+use crate::term::{Term, app, expand};
+use crate::term::Term::{S,K,I};
 
 /// An error returned by `parse()` when a parsing issue is encountered.
 #[derive(Debug, PartialEq, Eq)]
@@ -77,9 +78,9 @@ pub fn get_ast(tokens: &mut Vec<Token>, pos: &mut usize) -> Result<Term, ParseEr
     while let Some(token) = tokens.get(*pos) {
        println!("Pos = {}, Token = {:?}", pos, token);
        match token {
-            Token::S => term = expand(term, Combinator::S),
-            Token::K => term = expand(term, Combinator::K),
-            Token::I => term = expand(term, Combinator::I),
+            Token::S => term = expand(term, S),
+            Token::K => term = expand(term, K),
+            Token::I => term = expand(term, I),
             Token::Lparen => {
                 *pos += 1;
                 if let Ok(subterm) = get_ast(tokens, pos) {
@@ -97,9 +98,8 @@ pub fn get_ast(tokens: &mut Vec<Token>, pos: &mut usize) -> Result<Term, ParseEr
 
 #[cfg(test)]
 mod tests {
-    use super::*; 
-    use crate::term::Term::*;
-    use crate::term::Combinator::*;
+    use super::*;
+    use crate::term::Term::S;
 
     #[test]
     fn tokenize_fails_when_input_contains_invalid_characters() {
@@ -145,7 +145,7 @@ mod tests {
         ]; 
         let ast = get_ast(&mut tokens, &mut 0).unwrap();
 
-        assert_eq!(ast, app( app( app( app( app( Com(S), Com(S)), Com(S)), app(Com(S), Com(S))), Com(S)), Com(S)));
+        assert_eq!(ast,app(app(app(app(app(S,S),S),app(S,S)),S),S));
     }
 
 

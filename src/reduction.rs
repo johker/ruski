@@ -2,7 +2,6 @@
 pub use self::Order::*;
 pub use self::RuleType::*;
 use crate::term::Term::*;
-use crate::term::Combinator::*;
 use crate::term::{Term, app};
 use std::mem;
 
@@ -201,37 +200,22 @@ impl Term {
     /// ```
     /// use ruski::*;
     ///
-    /// assert_eq!(app(app(app(Com(S), Com(I)), Com(I)), Com(K)).is_reducible(), RuleType::SReducible);
+    /// assert_eq!(app(app(app(S, I), I), K).is_reducible(), RuleType::SReducible);
     ///
     /// ```
     pub fn is_reducible(&self) -> RuleType {
         if let Ok((lhs, _)) = self.unapp_ref() {
             match lhs {
-                Com(x) => {
-                    match x {
-                        I => return RuleType::IReducible,
-                        _ => (),
-                    }
-                },
+                I => return RuleType::IReducible,
                 _ => (),
             }
             if let Ok((llhs, _)) = lhs.unapp_ref() {
                 match llhs {
-                    Com(x) => {
-                        match x {
-                            K => return RuleType::KReducible,
-                            _ => (),
-                        }
-                    },
+                    K => return RuleType::KReducible,
                     App(boxed) => {
                         let (ref lhs, ref _rhs) = **boxed;
                         match lhs {
-                            Com(x) => {
-                                match x {
-                                    S => return RuleType::SReducible,
-                                    _ => (),
-                                }
-                            },
+                            S => return RuleType::SReducible,
                             _ => (),
                         }
                     },
@@ -249,36 +233,36 @@ mod tests {
 
     #[test]
     fn term_is_marked_as_reducible() {
-        assert_eq!(app(app(app(Com(S), Com(I)), Com(I)), Com(K)).is_reducible(), RuleType::SReducible);
-        assert_eq!(app(app(Com(K), Com(I)), Com(I)).is_reducible(), RuleType::KReducible);
-        assert_eq!(app(Com(I), Com(K)).is_reducible(), RuleType::IReducible);
+        assert_eq!(app(app(app(S, I), I), K).is_reducible(), RuleType::SReducible);
+        assert_eq!(app(app(K, I), I).is_reducible(), RuleType::KReducible);
+        assert_eq!(app(I, K).is_reducible(), RuleType::IReducible);
     }
 
     #[test]
     fn term_is_reduced_by_srule() {
-        let mut test_term = app(app(app(Com(S), Com(I)), Com(I)), Com(K));
+        let mut test_term = app(app(app(S, I), I), K);
         test_term.apply_srule(&mut 0);
-        assert_eq!(test_term, app(app(Com(I), Com(K)), app(Com(I), Com(K))));
+        assert_eq!(test_term, app(app(I, K), app(I, K)));
     }
 
     #[test]
     fn term_is_reduced_by_krule() {
-        let mut test_term = app(app(Com(K), Com(S)), Com(I));
+        let mut test_term = app(app(K, S), I);
         test_term.apply_krule(&mut 0);
-        assert_eq!(test_term, Com(S));
+        assert_eq!(test_term, S);
     }
 
     #[test]
     fn term_is_reduced_by_irule() {
-        let mut test_term = app(Com(I), Com(K));
+        let mut test_term = app(I, K);
         test_term.apply_irule(&mut 0);
-        assert_eq!(test_term, Com(K));
+        assert_eq!(test_term,K);
     }
 
     #[test]
     fn matches_are_counted_correctly() {
-        let lterm = app(app(app(Com(S),app(app(app(Com(S),Com(S)),Com(S)),app(app(app(Com(S),Com(S)),app(app(Com(K),Com(K)),Com(S))),Com(S)))),Com(S)),Com(S));
-        let rterm = app(app(app(Com(S),app(app(Com(K),Com(S)), Com(K))),Com(K)), Com(S));
+        let lterm = app(app(app(S,app(app(app(S,S),S),app(app(app(S,S),app(app(K,K),S)),S))),S),S);
+        let rterm = app(app(app(S,app(app(K,S),K)),K),S);
         let test_term = app(lterm, rterm);
         let mut matches = Matches::new();
         let limit = 100;
