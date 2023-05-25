@@ -60,7 +60,8 @@ pub struct Edges {
     rweight: f32,
 }
 
-
+/// Directed Acyclic Graph which shows how expressions
+/// break down into shared subexpressions.
 #[derive(Clone, Debug, Default)]
 pub struct Graph {
     // Outgoing edge list (one per node)
@@ -109,7 +110,7 @@ impl Graph {
     /// Adds a connection to the directed graph from the
     /// node with origin_id to destination_id and assigns the
     /// weight parameter to it.
-    pub fn add_edge(&mut self, origin_id: &usize, destination_id: &usize, weight: f32, sibling: &Sibling) {
+    pub fn add_edge(&mut self, origin_id: &usize, destination_id: &usize, sibling: &Sibling, weight: f32) {
         if self.nodes.contains_key(&origin_id) && self.nodes.contains_key(&destination_id) {
             if let Some(incoming_edges) = self.edges.get_mut(&destination_id) {
                 // Use origin_id to create an incoming edge
@@ -137,33 +138,48 @@ impl Graph {
             }
         } else {
             let pos = term.size() -1;
-            self.integrate(term, &pos);
+            self.integrate(term, &pos, &Sibling::RIGHT);
         }
     }
 
     /// Intgrates a new node into the graph
-    fn integrate(&mut self, term: &Vec<Token>, pos: &usize, bool side) {
+    fn integrate(&mut self, term: &mut Vec<Token>) -> usize {
         // Create new node with connection to first primitive
         // element.
         let node_id = self.add_node(term, true);
-        while let Some(token) = tokens.get(*pos) {
-            println!("Pos = {}, Token = {:?}", pos, token);
-            match token {
-                Token::S => term = self.add_edge(term, node_id, self.ts.get_id(), Sibling::RIGHT),
-                Token::K => term = self.add_edge(term, node_id, self.tk.get_id(), Sibling::RIGHT),
-                Token::I => term = self.add_edge(term, node_id, self.ti.get_id(), Sibling::RIGHT),
-                Token::Rparen => {
-                    *pos -= 1;
-                    if let Ok(subterm) = get_ast(tokens, pos) {
-                        term = app(term, subterm);
-                    }
-                }
-                Token::Rparen => return Ok(term),
-            }
-            println!("Term = {:?}", term);
-            *pos += 1;
+        let mut pos = term.size()-1;
+        let token = term.get(pos);
+        match token {
+            Token::S => self.add_edge(node_id, self.ts.get_id(), Sibling::RIGHT, 0.0),
+            Token::K => self.add_edge(node_id, self.tk.get_id(), Sibling::RIGHT, 0.0),
+            Token::I => self.add_edge(node_id, self.ti.get_id(), Sibling::RIGHT, 0.0),
+            Token::Rparen => {
+                get_sub_idx(term, pos);
+                let mut left_term = term.split_off(pos);
+                left_id = self.integrate(left_term);
+                right_id = self.integrate(term);
+                self.add_edge(node_id, left_id, &left_term, Sibling::LEFT);
+                self.add_edge(node_id, right_id, &term, Sibling::RIGHT);
+            },
+            Token::Lparen => (),
         }
+        return node_id;
 
+    }
+
+    fn get_sub_idx(term: &mut Vec<Token>, pos: &usize) {
+        let mut level = 0;
+        while let Some(token) = term.get(*pos) {
+            match token {
+                Token::Rparen => level += 1,
+                Token::LParen => level -= 1,
+                _ => (), 
+            }
+            if level == 0 {
+                return;
+            }
+            pos -= 1;
+        }
     }
 
 }
