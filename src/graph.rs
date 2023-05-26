@@ -3,6 +3,8 @@
 /// the reduction of expressions.
 ///
 
+use crate::term::{Term};
+use crate::term::Term::{S,K,I};
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -45,6 +47,12 @@ impl Node {
     /// Increase root expressions
     pub fn inc_expr(&mut self) {
         self.root_exprs += 1;
+    }
+}
+
+impl PartialEq for Node {
+    fn eq(&self, other: &Self) -> bool {
+        self.node_id == other.node_id
     }
 }
 
@@ -127,7 +135,7 @@ impl Graph {
     }
 
     /// Adds a term to the graph 
-    fn add_term(&mut self, term: &Vec<Token>) {
+    fn add_term(&mut self, term: &Vec<Token>) -> Result<usize, ParseError> {
         if tokens.is_empty() {
             return Err(ParseError::EmptyExpression);
         }
@@ -138,36 +146,55 @@ impl Graph {
             }
         } else {
             let pos = term.size() -1;
-            self.integrate(term, &pos, &Sibling::RIGHT);
+            if let Some(node_id) = self.integrate(term, &pos, &Sibling::RIGHT) {
+                return Ok(node_id);
+            }
         }
+        return Err(ParseError::InvalidExpression);
     }
 
     /// Intgrates a new node into the graph
-    fn integrate(&mut self, term: &mut Vec<Token>) -> usize {
+    ///
+    /// # Example
+    ///
+    /// use ruski::*
+    /// use ruski::parser::Token;
+    /// 
+    /// let graph = Graph::new();
+    /// let term = vec![S,S,S,Lparen,S,S,Rparen,S,S];
+    /// assert_eq!(graph.integrate(term), Some(5));
+    ///
+    /// # Errors 
+    ///
+    /// Return None if the expression is invalid
+    fn integrate(&mut self, term: &mut Vec<Token>) -> Option<usize>  {
         // Create new node with connection to first primitive
         // element.
         let node_id = self.add_node(term, true);
         let mut pos = term.size()-1;
         let token = term.get(pos);
         match token {
-            Token::S => self.add_edge(node_id, self.ts.get_id(), Sibling::RIGHT, 0.0),
-            Token::K => self.add_edge(node_id, self.tk.get_id(), Sibling::RIGHT, 0.0),
-            Token::I => self.add_edge(node_id, self.ti.get_id(), Sibling::RIGHT, 0.0),
+            Token::S => self.add_edge(&node_id, &self.ts.get_id(), &Sibling::RIGHT, 0.0),
+            Token::K => self.add_edge(&node_id, &self.tk.get_id(), &Sibling::RIGHT, 0.0),
+            Token::I => self.add_edge(&node_id, &self.ti.get_id(), &Sibling::RIGHT, 0.0),
             Token::Rparen => {
-                get_sub_idx(term, pos);
-                let mut left_term = term.split_off(pos);
-                left_id = self.integrate(left_term);
-                right_id = self.integrate(term);
-                self.add_edge(node_id, left_id, &left_term, Sibling::LEFT);
-                self.add_edge(node_id, right_id, &term, Sibling::RIGHT);
+                if let Some (lparen_pos) = get_sub_idx(term, pos) {
+                    let mut left_term = term.split_off(lparen_pos);
+                    if let Some(left_id) = self.integrate(left_term) {
+                        if let Some(right_id) = self.integrate(term) {
+                            self.add_edge(&node_id, left_id, &Sibling::LEFT, 0.0);
+                            self.add_edge(&node_id, right_id, &Sibling::RIGHT, 0.0);
+                            return Some(node_id);
+                        } 
+                    }
+                }
             },
             Token::Lparen => (),
         }
-        return node_id;
-
+        return None;
     }
 
-    fn get_sub_idx(term: &mut Vec<Token>, pos: &usize) {
+    fn get_sub_idx(term: &mut Vec<Token>, pos: &usize) -> Option<usize> {
         let mut level = 0;
         while let Some(token) = term.get(*pos) {
             match token {
@@ -176,10 +203,11 @@ impl Graph {
                 _ => (), 
             }
             if level == 0 {
-                return;
+                return Some(*pos);
             }
-            pos -= 1;
+            *pos -= 1;
         }
+        return None;
     }
 
 }
