@@ -16,7 +16,7 @@ pub enum ParseError {
     EmptyExpression,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[doc(hidden)]
 pub enum Token {
     ///  Starling Symbol
