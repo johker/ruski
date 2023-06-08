@@ -1,7 +1,8 @@
-//! A parser for lambda expressions
+/// A parser for lambda expressions
 
 
 
+use std::fmt;
 use crate::term::{Term, app, expand};
 use crate::term::Term::{S,K,I};
 
@@ -31,6 +32,18 @@ pub enum Token {
     Rparen,
 }
 
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &*self {
+            Token::S => write!(f, "S"),
+            Token::K => write!(f, "K"),
+            Token::I => write!(f, "I"),
+            Token::Lparen => write!(f, "("),
+            Token::Rparen => write!(f, ")"),
+        }
+
+    }
+}
 
 /// Attempts to parse the input `&str` as combinator `Term`. 
 ///
@@ -76,7 +89,7 @@ pub fn get_ast(tokens: &mut Vec<Token>, pos: &mut usize) -> Result<Term, ParseEr
     let mut term = Term::Null;
 
     while let Some(token) = tokens.get(*pos) {
-       println!("Pos = {}, Token = {:?}", pos, token);
+       // println!("Pos = {}, Token = {:?}", pos, token);
        match token {
             Token::S => term = expand(term, S),
             Token::K => term = expand(term, K),
@@ -89,7 +102,7 @@ pub fn get_ast(tokens: &mut Vec<Token>, pos: &mut usize) -> Result<Term, ParseEr
             }
             Token::Rparen => return Ok(term),
        }
-       println!("Term = {:?}", term);
+       // println!("Term = {:?}", term);
        *pos += 1;
     }
     return Ok(term);
