@@ -4,6 +4,7 @@
 ///
 
 use std::fmt;
+use std::fmt::Display;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use crate::parser::{Token, ParseError};
@@ -81,12 +82,13 @@ pub enum Sibling {
 }
 
 #[derive(Clone, Debug)]
-pub struct Pair<T> {
+pub struct Pair<T> 
+where T: Display {
     left: Option<T>,
     right: Option<T>,
 }
 
-impl<T> Pair<T> {
+impl<T: Display> Pair<T> {
 
     pub fn new(left: Option<T>, right: Option<T>) -> Self {
         Self {
@@ -109,6 +111,30 @@ impl<T> Pair<T> {
 
     pub fn set_right(&mut self, right: T) {
         self.right = Some(right);
+    }
+}
+
+
+impl<T: Display> fmt::Display for Pair<T> {
+
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut pair_string: String = "".to_owned();
+        if let Some(left) = self.get_left() {
+            pair_string.push_str(&left.to_string());
+        } else {
+            pair_string.push_str("None");
+        }
+        pair_string.push_str(",");
+        if let Some(right) = self.get_right() {
+            pair_string.push_str(&right.to_string());
+        } else {
+            pair_string.push_str("None");
+        }
+        write!(
+            f,
+            "[{}]",
+            pair_string
+        )
     }
 }
 
@@ -148,6 +174,22 @@ impl PartialEq for Edge {
 impl Eq for Edge {}
 
 
+impl fmt::Display for Edge {
+
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut edge_string: String = "".to_owned();
+            edge_string.push_str("DNID: ");
+            edge_string.push_str(&self.destination_node_id.to_string());
+            edge_string.push_str(", WEIGHT: ");
+            edge_string.push_str(&self.weight.to_string());
+        write!(
+            f,
+            "[{}]",
+            edge_string
+        )
+    }
+}
+
 /// Directed Acyclic Graph which shows how expressions
 /// break down into shared subexpressions.
 ///
@@ -165,6 +207,44 @@ pub struct Graph {
     pub ts: Node,
 }
 
+impl fmt::Display for Graph {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut node_string: String = "".to_owned();
+        node_string.push_str("\n");
+        node_string.push_str("S:");
+        node_string.push_str(&self.ts.to_string());
+        node_string.push_str("\n");
+        node_string.push_str("K:");
+        node_string.push_str(&self.tk.to_string());
+        node_string.push_str("\n");
+        node_string.push_str("I:");
+        node_string.push_str(&self.ti.to_string());
+        for (_, node) in self.nodes.iter() {
+            node_string.push_str("\n");
+            node_string.push_str(&node.to_string());
+            node_string.push_str(", ");
+        }
+        node_string = node_string.trim_end_matches(", ").to_string();
+        let mut edge_string: String = "".to_owned();
+        for (node, pair) in self.edges.iter() {
+            edge_string.push_str("\n");
+            edge_string.push_str("P[");
+            edge_string.push_str(&node.to_string());
+            edge_string.push_str(" <= ");
+            edge_string.push_str(&pair.to_string());
+            edge_string.push_str("]");
+        }
+        edge_string = edge_string.trim_end_matches(", ").to_string();
+        write!(
+            f,
+            "\nNODES({}): {}\nEDGES: {}",
+            &self.node_size(),
+            node_string,
+            edge_string,
+        )
+    }
+}
+
 impl Graph {
 
     pub fn new() -> Self {
@@ -175,6 +255,11 @@ impl Graph {
             tk: Node::new(vec![Token::K], false),
             ts: Node::new(vec![Token::S], false),
         }
+    }
+
+    /// Returns the number of nodes
+    pub fn node_size(&self) -> usize {
+        self.nodes.len()
     }
 
     /// Returns the node id that contains the passed token
