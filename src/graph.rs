@@ -61,11 +61,11 @@ impl fmt::Display for Node {
         let mut node_string: String = "".to_owned();
         node_string.push_str("ID: ");
         node_string.push_str(&self.node_id.to_string());
-        node_string.push_str(", TERM : ");
+        node_string.push_str(", TERM: ");
         for t in &self.term {
             node_string.push_str(&t.to_string());
         }
-        node_string.push_str(", #EXPR : ");
+        node_string.push_str(", #EXPR: ");
         node_string.push_str(&self.root_exprs.to_string());
         write!(
             f,
@@ -211,13 +211,10 @@ impl fmt::Display for Graph {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut node_string: String = "".to_owned();
         node_string.push_str("\n");
-        node_string.push_str("S:");
         node_string.push_str(&self.ts.to_string());
         node_string.push_str("\n");
-        node_string.push_str("K:");
         node_string.push_str(&self.tk.to_string());
         node_string.push_str("\n");
-        node_string.push_str("I:");
         node_string.push_str(&self.ti.to_string());
         for (_, node) in self.nodes.iter() {
             node_string.push_str("\n");
@@ -257,6 +254,11 @@ impl Graph {
         }
     }
 
+    /// Checks if id is part of the graph
+    fn contains_id(&self, id: &usize) -> bool {
+        self.nodes.contains_key(id) || self.ts.get_id() == *id || self.tk.get_id() == *id || self.ti.get_id() == *id
+    }
+
     /// Returns the number of nodes
     pub fn node_size(&self) -> usize {
         self.nodes.len()
@@ -285,7 +287,7 @@ impl Graph {
     /// node with origin_id to destination_id and assigns the
     /// weight parameter to it.
     fn add_edge(&mut self, origin_id: &usize, destination_id: &usize, sibling: Sibling, weight: f32) {
-        if self.nodes.contains_key(&origin_id) && self.nodes.contains_key(&destination_id) {
+        if self.contains_id(&origin_id) && self.contains_id(&destination_id) {
             let edge = Edge::new(*destination_id, weight);
             if let Some(outgoing_pair) = self.edges.get_mut(&origin_id) {
                 // Use destination_id to create an outgoing edge
@@ -342,8 +344,7 @@ impl Graph {
     fn integrate(&mut self, term: &mut Vec<Token>) -> Option<usize>  {
         // Create new node with connection to first primitive
         // element.
-        println!("Integrating {:?}", term);
-        let node_id = self.add_node((*term.clone()).to_vec(), true);
+        let node_id = self.add_node((*term.clone()).to_vec(), false);
         if let Some(token) = term.pop() {
             match token {
                 Token::S => self.add_edge(&node_id, &self.ts.get_id(), Sibling::RIGHT, 0.0),
