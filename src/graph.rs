@@ -263,7 +263,7 @@ impl Graph {
 
     /// Returns the id of the node containing the term or None 
     /// if no term can be found. Includes the elementary terms S,K and I.
-    pub fn get_token_id(&self, term: &Vec<Token>) -> Option<usize> {
+    pub fn contains(&self, term: &Vec<Token>) -> Option<usize> {
         if term.len() == 1 {
            if self.ts.term_eq(term) {
                 return Some(self.ts.id())
@@ -288,16 +288,6 @@ impl Graph {
         self.nodes.len()
     }
 
-    /// Returns the node id that contains the passed token
-    fn contains(&self, term: &Vec<Token>) -> Option<usize> {
-        for n in self.nodes.values(){
-            if n.term_eq(term) {
-                return Some(n.id())
-            }
-        }
-        None
-    }
-
     /// Adds an new node with the given term 
     /// and returns its assigned IDs.
     pub fn add_node(&mut self, term: Vec<Token>, is_root: bool) -> usize {
@@ -310,7 +300,7 @@ impl Graph {
     /// Adds a connection to the directed graph from the
     /// node with origin_id to destination_id and assigns the
     /// weight parameter to it.
-    fn add_edge(&mut self, origin_id: &usize, destination_id: &usize, sibling: Sibling, weight: f32) {
+    pub fn add_edge(&mut self, origin_id: &usize, destination_id: &usize, sibling: Sibling, weight: f32) {
         if self.contains_id(&origin_id) && self.contains_id(&destination_id) {
             let edge = Edge::new(*destination_id, weight);
             if let Some(outgoing_pair) = self.edges.get_mut(&origin_id) {
@@ -333,17 +323,17 @@ impl Graph {
     }
 
     /// Adds a term to the graph 
-    fn add_term(&mut self, term: &mut Vec<Token>) -> Result<usize, ParseError> {
+    pub fn add_term(&mut self, term: &mut Vec<Token>) -> Result<usize, ParseError> {
         if term.is_empty() {
             return Err(ParseError::EmptyExpression);
         }
 
         if let Some(node_id) = self.contains(term) {
-            if let Some(mut node) = self.nodes.get_mut(&node_id) {
+            if let Some(node) = self.nodes.get_mut(&node_id) {
                 node.inc_expr();
             }
+            return Ok(node_id)
         } else {
-            let pos = term.len() -1;
             if let Some(node_id) = self.integrate(term) {
                 return Ok(node_id);
             }
@@ -365,9 +355,9 @@ impl Graph {
     /// # Errors 
     ///
     /// Return None if the expression is invalid
-    fn integrate(&mut self, term: &mut Vec<Token>) -> Option<usize>  {
+    pub fn integrate(&mut self, term: &mut Vec<Token>) -> Option<usize>  {
         // Check if term exists
-        if let Some(node_id) = self.get_token_id(term) {
+        if let Some(node_id) = self.contains(term) {
             return Some(node_id);
         }
         // Create new node with connection to first primitive
@@ -404,7 +394,7 @@ impl Graph {
     /// Returns the first left parenthesis index that is not preceeded by
     /// a right parenthesis going from right to left of the passed token
     /// sequence or None j.
-    fn lpidx(term: &Vec<Token>) -> Option<usize> {
+    pub fn lpidx(term: &Vec<Token>) -> Option<usize> {
         let mut level = 1;
         let mut lpos = term.len() -1;
         while let Some(token) = term.get(lpos) {
@@ -429,22 +419,20 @@ impl Graph {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parser::Token::{Lparen, Rparen};
-    use crate::term::Term::S;
     use crate::parser::tokenize;
 
     #[test]
     fn lpidx_finds_left_parenthesis_position() {
         let test_input = "S S S ( S S"; 
-        let mut tokens = tokenize(test_input).unwrap();
+        let tokens = tokenize(test_input).unwrap();
         assert_eq!(Graph::lpidx(&tokens), Some(3));
 
         let test_input = "S S S ( S ( S K ) S"; 
-        let mut tokens = tokenize(test_input).unwrap();
+        let tokens = tokenize(test_input).unwrap();
         assert_eq!(Graph::lpidx(&tokens), Some(3));
 
         let test_input = "S S S S ( S K ) S"; 
-        let mut tokens = tokenize(test_input).unwrap();
+        let tokens = tokenize(test_input).unwrap();
         assert_eq!(Graph::lpidx(&tokens), None);
     }
 
@@ -455,11 +443,11 @@ mod tests {
         let mut tokens = tokenize(test_input).unwrap();
         let root = graph.integrate(&mut tokens).unwrap();
 
-        let n0 = graph.get_token_id(&tokenize("S S S ( S S ) S S").unwrap()).unwrap();
-        let n1 = graph.get_token_id(&tokenize("S S S ( S S ) S").unwrap()).unwrap();
-        let n2 = graph.get_token_id(&tokenize("S S S ( S S )").unwrap()).unwrap();
-        let n3 = graph.get_token_id(&tokenize("S S S").unwrap()).unwrap();
-        let n4 = graph.get_token_id(&tokenize("S S").unwrap()).unwrap();
+        let n0 = graph.contains(&tokenize("S S S ( S S ) S S").unwrap()).unwrap();
+        let n1 = graph.contains(&tokenize("S S S ( S S ) S").unwrap()).unwrap();
+        let n2 = graph.contains(&tokenize("S S S ( S S )").unwrap()).unwrap();
+        let n3 = graph.contains(&tokenize("S S S").unwrap()).unwrap();
+        let n4 = graph.contains(&tokenize("S S").unwrap()).unwrap();
 
 
         assert_eq!(root, n0);
