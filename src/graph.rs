@@ -39,7 +39,7 @@ impl Node {
     }
 
     /// Returns the id of the node
-    pub fn get_id(&self) -> usize {
+    pub fn id(&self) -> usize {
         self.node_id
     }
 
@@ -152,7 +152,7 @@ impl Edge {
             weight: weight,
         }
     }
-    pub fn get_destination_node_id(&self) -> usize {
+    pub fn dnid(&self) -> usize {
         self.destination_node_id
     }
 
@@ -254,9 +254,33 @@ impl Graph {
         }
     }
 
+    /// Returns the id of the node containing the term or None 
+    /// if no term can be found
+    pub fn get_term_id(&self, term: &Vec<Token>) -> Option<usize> {
+        self.nodes.iter().find_map(|(key, val)| if val.term == *term { Some(*key) } else { None })
+
+    }
+
+    /// Returns the id of the node containing the term or None 
+    /// if no term can be found. Includes the elementary terms S,K and I.
+    pub fn get_token_id(&self, term: &Vec<Token>) -> Option<usize> {
+        if term.len() == 1 {
+           if self.ts.term_eq(term) {
+                return Some(self.ts.id())
+           }
+           if self.tk.term_eq(term) {
+                return Some(self.tk.id())
+           }
+           if self.ti.term_eq(term) {
+                return Some(self.ti.id())
+           }
+        }
+       return self.get_term_id(term);
+    }
+
     /// Checks if id is part of the graph
     fn contains_id(&self, id: &usize) -> bool {
-        self.nodes.contains_key(id) || self.ts.get_id() == *id || self.tk.get_id() == *id || self.ti.get_id() == *id
+        self.nodes.contains_key(id) || self.ts.id() == *id || self.tk.id() == *id || self.ti.id() == *id
     }
 
     /// Returns the number of nodes
@@ -268,7 +292,7 @@ impl Graph {
     fn contains(&self, term: &Vec<Token>) -> Option<usize> {
         for n in self.nodes.values(){
             if n.term_eq(term) {
-                return Some(n.get_id())
+                return Some(n.id())
             }
         }
         None
@@ -278,7 +302,7 @@ impl Graph {
     /// and returns its assigned IDs.
     pub fn add_node(&mut self, term: Vec<Token>, is_root: bool) -> usize {
         let node = Node::new(term, is_root); 
-        let node_id = node.get_id();
+        let node_id = node.id();
         self.nodes.insert(node_id, node);
         node_id.clone()
     }
@@ -342,17 +366,22 @@ impl Graph {
     ///
     /// Return None if the expression is invalid
     fn integrate(&mut self, term: &mut Vec<Token>) -> Option<usize>  {
+        // Check if term exists
+        if let Some(node_id) = self.get_token_id(term) {
+            return Some(node_id);
+        }
         // Create new node with connection to first primitive
         // element.
         let node_id = self.add_node((*term.clone()).to_vec(), false);
         if let Some(token) = term.pop() {
             match token {
-                Token::S => self.add_edge(&node_id, &self.ts.get_id(), Sibling::RIGHT, 0.0),
-                Token::K => self.add_edge(&node_id, &self.tk.get_id(), Sibling::RIGHT, 0.0),
-                Token::I => self.add_edge(&node_id, &self.ti.get_id(), Sibling::RIGHT, 0.0),
+                Token::S => self.add_edge(&node_id, &self.ts.id(), Sibling::RIGHT, 0.0),
+                Token::K => self.add_edge(&node_id, &self.tk.id(), Sibling::RIGHT, 0.0),
+                Token::I => self.add_edge(&node_id, &self.ti.id(), Sibling::RIGHT, 0.0),
                 Token::Rparen => {
-                    if let Some (lparen_pos) = self.get_sub_idx(term, &(term.len() -1)) {
+                    if let Some (lparen_pos) = Graph::lpidx(term) {
                         let mut left_term = term.split_off(lparen_pos);
+                        left_term = left_term.split_off(1); // Remove left parenthesis
                         if let Some(left_id) = self.integrate(&mut left_term) {
                             if let Some(right_id) = self.integrate(term) {
                                 self.add_edge(&node_id, &left_id, Sibling::LEFT, 0.0);
@@ -372,9 +401,12 @@ impl Graph {
         return None;
     }
 
-    fn get_sub_idx(&self, term: &Vec<Token>, pos: &usize) -> Option<usize> {
-        let mut level = 0;
-        let mut lpos = *pos;
+    /// Returns the first left parenthesis index that is not preceeded by
+    /// a right parenthesis going from right to left of the passed token
+    /// sequence or None j.
+    fn lpidx(term: &Vec<Token>) -> Option<usize> {
+        let mut level = 1;
+        let mut lpos = term.len() -1;
         while let Some(token) = term.get(lpos) {
             match token {
                 Token::Rparen => level += 1,
@@ -383,6 +415,9 @@ impl Graph {
             }
             if level == 0 {
                 return Some(lpos);
+            }
+            if lpos == 0 {
+                return None;
             }
             lpos -= 1;
         }
@@ -399,17 +434,49 @@ mod tests {
     use crate::parser::tokenize;
 
     #[test]
+    fn lpidx_finds_left_parenthesis_position() {
+        let test_input = "S S S ( S S"; 
+        let mut tokens = tokenize(test_input).unwrap();
+        assert_eq!(Graph::lpidx(&tokens), Some(3));
+
+        let test_input = "S S S ( S ( S K ) S"; 
+        let mut tokens = tokenize(test_input).unwrap();
+        assert_eq!(Graph::lpidx(&tokens), Some(3));
+
+        let test_input = "S S S S ( S K ) S"; 
+        let mut tokens = tokenize(test_input).unwrap();
+        assert_eq!(Graph::lpidx(&tokens), None);
+    }
+
+    #[test]
     fn integrate_generates_all_nodes() {
         let mut graph = Graph::new();
         let test_input = "S S S ( S S ) S S"; 
         let mut tokens = tokenize(test_input).unwrap();
-        let n1_id = graph.integrate(&mut tokens).unwrap();
-        let n1_pair = graph.edges.get(&n1_id).unwrap();
-        assert_eq!(n1_pair.get_right().as_ref().unwrap().get_destination_node_id(), graph.ts.get_id());
-        let n2_id = n1_pair.get_left().as_ref().unwrap().get_destination_node_id();
-        let n2_term = tokenize("S S S ( S S ) S").unwrap();
-        assert!(graph.nodes.get(&n2_id).unwrap().term_eq(&n2_term)); 
-        
+        let root = graph.integrate(&mut tokens).unwrap();
+
+        let n0 = graph.get_token_id(&tokenize("S S S ( S S ) S S").unwrap()).unwrap();
+        let n1 = graph.get_token_id(&tokenize("S S S ( S S ) S").unwrap()).unwrap();
+        let n2 = graph.get_token_id(&tokenize("S S S ( S S )").unwrap()).unwrap();
+        let n3 = graph.get_token_id(&tokenize("S S S").unwrap()).unwrap();
+        let n4 = graph.get_token_id(&tokenize("S S").unwrap()).unwrap();
+
+
+        assert_eq!(root, n0);
+        assert_eq!(graph.edges.get(&n0).unwrap().get_left().as_ref().unwrap().dnid(), n1);
+        assert_eq!(graph.edges.get(&n0).unwrap().get_right().as_ref().unwrap().dnid(), graph.ts.id());
+
+        assert_eq!(graph.edges.get(&n1).unwrap().get_left().as_ref().unwrap().dnid(), n2);
+        assert_eq!(graph.edges.get(&n1).unwrap().get_right().as_ref().unwrap().dnid(), graph.ts.id());
+
+        assert_eq!(graph.edges.get(&n2).unwrap().get_left().as_ref().unwrap().dnid(), n4);
+        assert_eq!(graph.edges.get(&n2).unwrap().get_right().as_ref().unwrap().dnid(), n3);
+
+        assert_eq!(graph.edges.get(&n3).unwrap().get_left().as_ref().unwrap().dnid(), n4);
+        assert_eq!(graph.edges.get(&n3).unwrap().get_right().as_ref().unwrap().dnid(), graph.ts.id());
+
+        assert_eq!(graph.edges.get(&n4).unwrap().get_left().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(graph.edges.get(&n4).unwrap().get_right().as_ref().unwrap().dnid(), graph.ts.id());
     }
 
 }
