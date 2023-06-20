@@ -465,6 +465,47 @@ mod tests {
 
         assert_eq!(graph.edges.get(&n4).unwrap().get_left().as_ref().unwrap().dnid(), graph.ts.id());
         assert_eq!(graph.edges.get(&n4).unwrap().get_right().as_ref().unwrap().dnid(), graph.ts.id());
-    }
 
+        let mut graph = Graph::new();
+        let n0 = graph.contains(&tokenize("S ( S ( S S ) S ( S ( S S ) S ) S ) ( S ( S S ) S ( S ( S S ) S ( S ( S S ) S ) S ) ( S ( S ( S S ) S ( S ( S S ) S ) S ) ) )").unwrap()).unwrap();
+        let n1 = graph.contains(&tokenize("S ( S S ) S ( S ( S S ) S ( S ( S S ) S ) S ) ( S ( S ( S S ) S ( S ( S S ) S ) S ) )").unwrap()).unwrap();
+        let n2 = graph.contains(&tokenize("S ( S S ) S ( S ( S S ) S ( S ( S S ) S ) S )").unwrap()).unwrap();
+        let n3 = graph.contains(&tokenize("S ( S ( S S ) S ( S ( S S ) S ) S )").unwrap()).unwrap();
+        let n4 = graph.contains(&tokenize("S ( S S ) S ( S ( S S ) S ) S").unwrap()).unwrap();
+        let n5 = graph.contains(&tokenize("S ( S ( S S ) S ) S").unwrap()).unwrap();
+        let n6 = graph.contains(&tokenize("S ( S ( S S ) S )").unwrap()).unwrap();
+        let n7 = graph.contains(&tokenize("S ( S S ) S").unwrap()).unwrap();
+        let n8 = graph.contains(&tokenize("S ( S S )").unwrap()).unwrap();
+        let n9 = graph.contains(&tokenize("S S").unwrap()).unwrap();
+
+        assert_eq!(graph.edges.get(&n0).unwrap().get_left().as_ref().unwrap().dnid(), n3);
+        assert_eq!(graph.edges.get(&n0).unwrap().get_right().as_ref().unwrap().dnid(), n1);
+
+        assert_eq!(graph.edges.get(&n1).unwrap().get_left().as_ref().unwrap().dnid(), n2);
+        assert_eq!(graph.edges.get(&n1).unwrap().get_right().as_ref().unwrap().dnid(), n3);
+
+        assert_eq!(graph.edges.get(&n2).unwrap().get_left().as_ref().unwrap().dnid(), n7);
+        assert_eq!(graph.edges.get(&n2).unwrap().get_right().as_ref().unwrap().dnid(), n4);
+
+        assert_eq!(graph.edges.get(&n3).unwrap().get_left().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(graph.edges.get(&n3).unwrap().get_right().as_ref().unwrap().dnid(), n4);
+
+        assert_eq!(graph.edges.get(&n4).unwrap().get_left().as_ref().unwrap().dnid(), n8);
+        assert_eq!(graph.edges.get(&n4).unwrap().get_right().as_ref().unwrap().dnid(), n5);
+
+        assert_eq!(graph.edges.get(&n5).unwrap().get_left().as_ref().unwrap().dnid(), n6);
+        assert_eq!(graph.edges.get(&n5).unwrap().get_right().as_ref().unwrap().dnid(), graph.ts.id());
+
+        assert_eq!(graph.edges.get(&n6).unwrap().get_left().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(graph.edges.get(&n6).unwrap().get_right().as_ref().unwrap().dnid(), n7);
+
+        assert_eq!(graph.edges.get(&n7).unwrap().get_left().as_ref().unwrap().dnid(), n8);
+        assert_eq!(graph.edges.get(&n7).unwrap().get_right().as_ref().unwrap().dnid(), graph.ts.id());
+
+        assert_eq!(graph.edges.get(&n8).unwrap().get_left().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(graph.edges.get(&n8).unwrap().get_right().as_ref().unwrap().dnid(), n9);
+
+        assert_eq!(graph.edges.get(&n9).unwrap().get_left().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(graph.edges.get(&n9).unwrap().get_right().as_ref().unwrap().dnid(), graph.ts.id());
+    }
 }
