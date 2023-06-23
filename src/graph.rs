@@ -77,40 +77,40 @@ impl fmt::Display for Node {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Sibling {
-    LEFT,
-    RIGHT,
+    HEAD,
+    ARG,
 }
 
 #[derive(Clone, Debug)]
 pub struct Pair<T> 
 where T: Display {
-    left: Option<T>,
-    right: Option<T>,
+    head: Option<T>,
+    arg: Option<T>,
 }
 
 impl<T: Display> Pair<T> {
 
-    pub fn new(left: Option<T>, right: Option<T>) -> Self {
+    pub fn new(head: Option<T>, arg: Option<T>) -> Self {
         Self {
-            left: left,
-            right: right,
+            head: head,
+            arg: arg,
         }
     }
 
-    pub fn get_left(&self) -> &Option<T> {
-        &self.left
+    pub fn get_head(&self) -> &Option<T> {
+        &self.head
     }
 
-    pub fn set_left(&mut self, left: T) {
-        self.left = Some(left);
+    pub fn set_head(&mut self, head: T) {
+        self.head = Some(head);
     }
 
-    pub fn get_right(&self) -> &Option<T> {
-        &self.right
+    pub fn get_arg(&self) -> &Option<T> {
+        &self.arg
     }
 
-    pub fn set_right(&mut self, right: T) {
-        self.right = Some(right);
+    pub fn set_arg(&mut self, arg: T) {
+        self.arg = Some(arg);
     }
 }
 
@@ -119,14 +119,14 @@ impl<T: Display> fmt::Display for Pair<T> {
 
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut pair_string: String = "".to_owned();
-        if let Some(left) = self.get_left() {
-            pair_string.push_str(&left.to_string());
+        if let Some(head) = self.get_head() {
+            pair_string.push_str(&head.to_string());
         } else {
             pair_string.push_str("None");
         }
         pair_string.push_str(",");
-        if let Some(right) = self.get_right() {
-            pair_string.push_str(&right.to_string());
+        if let Some(arg) = self.get_arg() {
+            pair_string.push_str(&arg.to_string());
         } else {
             pair_string.push_str("None");
         }
@@ -305,17 +305,17 @@ impl Graph {
             let edge = Edge::new(*destination_id, weight);
             if let Some(outgoing_pair) = self.edges.get_mut(&origin_id) {
                 // Use destination_id to create an outgoing edge
-                if sibling == Sibling::LEFT {
-                    outgoing_pair.set_left(edge);
+                if sibling == Sibling::HEAD {
+                    outgoing_pair.set_head(edge);
                 } else {
-                    outgoing_pair.set_right(edge);
+                    outgoing_pair.set_arg(edge);
                 }
             } else {
                 let mut new_pair = Pair::new(None,None);
-                if sibling == Sibling::LEFT {
-                    new_pair.set_left(edge);
+                if sibling == Sibling::HEAD {
+                    new_pair.set_head(edge);
                 } else {
-                    new_pair.set_right(edge);
+                    new_pair.set_arg(edge);
                 }
                 self.edges.insert(*origin_id, new_pair);
             }
@@ -365,17 +365,17 @@ impl Graph {
         let node_id = self.add_node((*term.clone()).to_vec(), false);
         if let Some(token) = term.pop() {
             match token {
-                Token::S => self.add_edge(&node_id, &self.ts.id(), Sibling::RIGHT, 0.0),
-                Token::K => self.add_edge(&node_id, &self.tk.id(), Sibling::RIGHT, 0.0),
-                Token::I => self.add_edge(&node_id, &self.ti.id(), Sibling::RIGHT, 0.0),
+                Token::S => self.add_edge(&node_id, &self.ts.id(), Sibling::ARG, 0.0),
+                Token::K => self.add_edge(&node_id, &self.tk.id(), Sibling::ARG, 0.0),
+                Token::I => self.add_edge(&node_id, &self.ti.id(), Sibling::ARG, 0.0),
                 Token::Rparen => {
                     if let Some (lparen_pos) = Graph::lpidx(term) {
-                        let mut left_term = term.split_off(lparen_pos);
-                        left_term = left_term.split_off(1); // Remove left parenthesis
-                        if let Some(left_id) = self.integrate(&mut left_term) {
-                            if let Some(right_id) = self.integrate(term) {
-                                self.add_edge(&node_id, &left_id, Sibling::LEFT, 0.0);
-                                self.add_edge(&node_id, &right_id, Sibling::RIGHT, 0.0);
+                        let mut arg_term = term.split_off(lparen_pos);
+                        arg_term = arg_term.split_off(1); // Remove left parenthesis
+                        if let Some(arg_id) = self.integrate(&mut arg_term) {
+                            if let Some(head_id) = self.integrate(term) {
+                                self.add_edge(&node_id, &head_id, Sibling::HEAD, 0.0);
+                                self.add_edge(&node_id, &arg_id, Sibling::ARG, 0.0);
                                 return Some(node_id);
                             }
                         }
@@ -384,7 +384,7 @@ impl Graph {
                 Token::Lparen => (),
             }
             if let Some(node_id_subterm) = self.integrate(term) {
-                self.add_edge(&node_id, &node_id_subterm, Sibling::LEFT, 0.0);
+                self.add_edge(&node_id, &node_id_subterm, Sibling::HEAD, 0.0);
             }
             return Some(node_id);
         }
@@ -422,7 +422,7 @@ mod tests {
     use crate::parser::tokenize;
 
     #[test]
-    fn lpidx_finds_left_parenthesis_position() {
+    fn lpidx_finds_head_parenthesis_position() {
         let test_input = "S S S ( S S"; 
         let tokens = tokenize(test_input).unwrap();
         assert_eq!(Graph::lpidx(&tokens), Some(3));
@@ -451,61 +451,68 @@ mod tests {
 
 
         assert_eq!(root, n0);
-        assert_eq!(graph.edges.get(&n0).unwrap().get_left().as_ref().unwrap().dnid(), n1);
-        assert_eq!(graph.edges.get(&n0).unwrap().get_right().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(graph.edges.get(&n0).unwrap().get_head().as_ref().unwrap().dnid(), n1);
+        assert_eq!(graph.edges.get(&n0).unwrap().get_arg().as_ref().unwrap().dnid(), graph.ts.id());
 
-        assert_eq!(graph.edges.get(&n1).unwrap().get_left().as_ref().unwrap().dnid(), n2);
-        assert_eq!(graph.edges.get(&n1).unwrap().get_right().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(graph.edges.get(&n1).unwrap().get_head().as_ref().unwrap().dnid(), n2);
+        assert_eq!(graph.edges.get(&n1).unwrap().get_arg().as_ref().unwrap().dnid(), graph.ts.id());
 
-        assert_eq!(graph.edges.get(&n2).unwrap().get_left().as_ref().unwrap().dnid(), n4);
-        assert_eq!(graph.edges.get(&n2).unwrap().get_right().as_ref().unwrap().dnid(), n3);
+        assert_eq!(graph.edges.get(&n2).unwrap().get_head().as_ref().unwrap().dnid(), n3);
+        assert_eq!(graph.edges.get(&n2).unwrap().get_arg().as_ref().unwrap().dnid(), n4);
 
-        assert_eq!(graph.edges.get(&n3).unwrap().get_left().as_ref().unwrap().dnid(), n4);
-        assert_eq!(graph.edges.get(&n3).unwrap().get_right().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(graph.edges.get(&n3).unwrap().get_head().as_ref().unwrap().dnid(), n4);
+        assert_eq!(graph.edges.get(&n3).unwrap().get_arg().as_ref().unwrap().dnid(), graph.ts.id());
 
-        assert_eq!(graph.edges.get(&n4).unwrap().get_left().as_ref().unwrap().dnid(), graph.ts.id());
-        assert_eq!(graph.edges.get(&n4).unwrap().get_right().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(graph.edges.get(&n4).unwrap().get_head().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(graph.edges.get(&n4).unwrap().get_arg().as_ref().unwrap().dnid(), graph.ts.id());
 
         let mut graph = Graph::new();
-        let n0 = graph.contains(&tokenize("S ( S ( S S ) S ( S ( S S ) S ) S ) ( S ( S S ) S ( S ( S S ) S ( S ( S S ) S ) S ) ( S ( S ( S S ) S ( S ( S S ) S ) S ) ) )").unwrap()).unwrap();
-        let n1 = graph.contains(&tokenize("S ( S S ) S ( S ( S S ) S ( S ( S S ) S ) S ) ( S ( S ( S S ) S ( S ( S S ) S ) S ) )").unwrap()).unwrap();
-        let n2 = graph.contains(&tokenize("S ( S S ) S ( S ( S S ) S ( S ( S S ) S ) S )").unwrap()).unwrap();
-        let n3 = graph.contains(&tokenize("S ( S ( S S ) S ( S ( S S ) S ) S )").unwrap()).unwrap();
-        let n4 = graph.contains(&tokenize("S ( S S ) S ( S ( S S ) S ) S").unwrap()).unwrap();
+        let test_input = "S ( S ( S S ) ( S ( S ( S S ) S ) S ) ) ( S ( S S ) S ( S ( S S ) ( S ( S ( S S ) S ) S ) ) ( S ( S ( S S ) ( S ( S ( S S ) S ) S ) ) ) )";
+        let mut tokens = tokenize(test_input).unwrap();
+        let root = graph.integrate(&mut tokens).unwrap();
+
+        println!("Graph = {}", graph.to_string());
+        let n0 = graph.contains(&tokenize("S ( S ( S S ) ( S ( S ( S S ) S ) S ) ) ( S ( S S ) S ( S ( S S ) ( S ( S ( S S ) S ) S ) ) ( S ( S ( S S ) ( S ( S ( S S ) S ) S ) ) ) )").unwrap()).unwrap();
+        let n1 = graph.contains(&tokenize("S ( S S ) S ( S ( S S ) ( S ( S ( S S ) S ) S ) ) ( S ( S ( S S ) ( S ( S ( S S ) S ) S ) ) )").unwrap()).unwrap();
+        let n2 = graph.contains(&tokenize("S ( S S ) S ( S ( S S ) ( S ( S ( S S ) S ) S ) )").unwrap()).unwrap();
+        let n3 = graph.contains(&tokenize("S ( S ( S S ) ( S ( S ( S S ) S ) S ) )").unwrap()).unwrap();
+        let n4 = graph.contains(&tokenize("S ( S S ) ( S ( S ( S S ) S ) S )").unwrap()).unwrap();
         let n5 = graph.contains(&tokenize("S ( S ( S S ) S ) S").unwrap()).unwrap();
         let n6 = graph.contains(&tokenize("S ( S ( S S ) S )").unwrap()).unwrap();
         let n7 = graph.contains(&tokenize("S ( S S ) S").unwrap()).unwrap();
         let n8 = graph.contains(&tokenize("S ( S S )").unwrap()).unwrap();
         let n9 = graph.contains(&tokenize("S S").unwrap()).unwrap();
 
-        assert_eq!(graph.edges.get(&n0).unwrap().get_left().as_ref().unwrap().dnid(), n3);
-        assert_eq!(graph.edges.get(&n0).unwrap().get_right().as_ref().unwrap().dnid(), n1);
 
-        assert_eq!(graph.edges.get(&n1).unwrap().get_left().as_ref().unwrap().dnid(), n2);
-        assert_eq!(graph.edges.get(&n1).unwrap().get_right().as_ref().unwrap().dnid(), n3);
+        assert_eq!(root, n0);
+        assert_eq!(graph.edges.get(&n0).unwrap().get_head().as_ref().unwrap().dnid(), n3);
+        assert_eq!(graph.edges.get(&n0).unwrap().get_arg().as_ref().unwrap().dnid(), n1);
 
-        assert_eq!(graph.edges.get(&n2).unwrap().get_left().as_ref().unwrap().dnid(), n7);
-        assert_eq!(graph.edges.get(&n2).unwrap().get_right().as_ref().unwrap().dnid(), n4);
+        assert_eq!(graph.edges.get(&n1).unwrap().get_head().as_ref().unwrap().dnid(), n2);
+        assert_eq!(graph.edges.get(&n1).unwrap().get_arg().as_ref().unwrap().dnid(), n3);
 
-        assert_eq!(graph.edges.get(&n3).unwrap().get_left().as_ref().unwrap().dnid(), graph.ts.id());
-        assert_eq!(graph.edges.get(&n3).unwrap().get_right().as_ref().unwrap().dnid(), n4);
+        assert_eq!(graph.edges.get(&n2).unwrap().get_head().as_ref().unwrap().dnid(), n7);
+        assert_eq!(graph.edges.get(&n2).unwrap().get_arg().as_ref().unwrap().dnid(), n4);
 
-        assert_eq!(graph.edges.get(&n4).unwrap().get_left().as_ref().unwrap().dnid(), n8);
-        assert_eq!(graph.edges.get(&n4).unwrap().get_right().as_ref().unwrap().dnid(), n5);
+        assert_eq!(graph.edges.get(&n3).unwrap().get_head().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(graph.edges.get(&n3).unwrap().get_arg().as_ref().unwrap().dnid(), n4);
 
-        assert_eq!(graph.edges.get(&n5).unwrap().get_left().as_ref().unwrap().dnid(), n6);
-        assert_eq!(graph.edges.get(&n5).unwrap().get_right().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(graph.edges.get(&n4).unwrap().get_head().as_ref().unwrap().dnid(), n8);
+        assert_eq!(graph.edges.get(&n4).unwrap().get_arg().as_ref().unwrap().dnid(), n5);
 
-        assert_eq!(graph.edges.get(&n6).unwrap().get_left().as_ref().unwrap().dnid(), graph.ts.id());
-        assert_eq!(graph.edges.get(&n6).unwrap().get_right().as_ref().unwrap().dnid(), n7);
+        assert_eq!(graph.edges.get(&n5).unwrap().get_head().as_ref().unwrap().dnid(), n6);
+        assert_eq!(graph.edges.get(&n5).unwrap().get_arg().as_ref().unwrap().dnid(), graph.ts.id());
 
-        assert_eq!(graph.edges.get(&n7).unwrap().get_left().as_ref().unwrap().dnid(), n8);
-        assert_eq!(graph.edges.get(&n7).unwrap().get_right().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(graph.edges.get(&n6).unwrap().get_head().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(graph.edges.get(&n6).unwrap().get_arg().as_ref().unwrap().dnid(), n7);
 
-        assert_eq!(graph.edges.get(&n8).unwrap().get_left().as_ref().unwrap().dnid(), graph.ts.id());
-        assert_eq!(graph.edges.get(&n8).unwrap().get_right().as_ref().unwrap().dnid(), n9);
+        assert_eq!(graph.edges.get(&n7).unwrap().get_head().as_ref().unwrap().dnid(), n8);
+        assert_eq!(graph.edges.get(&n7).unwrap().get_arg().as_ref().unwrap().dnid(), graph.ts.id());
 
-        assert_eq!(graph.edges.get(&n9).unwrap().get_left().as_ref().unwrap().dnid(), graph.ts.id());
-        assert_eq!(graph.edges.get(&n9).unwrap().get_right().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(graph.edges.get(&n8).unwrap().get_head().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(graph.edges.get(&n8).unwrap().get_arg().as_ref().unwrap().dnid(), n9);
+
+        assert_eq!(graph.edges.get(&n9).unwrap().get_head().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(graph.edges.get(&n9).unwrap().get_arg().as_ref().unwrap().dnid(), graph.ts.id());
     }
 }
