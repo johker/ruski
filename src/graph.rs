@@ -16,8 +16,9 @@ pub struct Node {
     node_id: usize,
     // Term including all sub expressions
     term: Vec<Token>,
-    // Number of root expressions
-    root_exprs: u32,
+    // Number of expressions that are not
+    // subexpression of another expression
+    nexpr: u32,
 }
 
 
@@ -29,7 +30,7 @@ impl Node {
         Self {
             node_id: NODE_COUNTER.fetch_add(1, Ordering::Relaxed),
             term: term,
-            root_exprs : if is_root { 1 } else { 0 },
+            nexpr : if is_root { 1 } else { 0 },
         }
     }
 
@@ -43,12 +44,18 @@ impl Node {
         self.node_id
     }
 
-    /// Increase root expressions
-    pub fn inc_expr(&mut self) {
-        self.root_exprs += 1;
+    /// Increase number of expressions
+    pub fn icr_nexpr(&mut self) {
+        self.nexpr += 1;
     }
-}
 
+
+    /// Return number of expressions
+    pub fn nexpr(& self) -> u32 {
+        self.nexpr
+    }
+    
+}
 impl PartialEq for Node {
     fn eq(&self, other: &Self) -> bool {
         self.node_id == other.node_id
@@ -66,7 +73,7 @@ impl fmt::Display for Node {
             node_string.push_str(&t.to_string());
         }
         node_string.push_str(", #EXPR: ");
-        node_string.push_str(&self.root_exprs.to_string());
+        node_string.push_str(&self.nexpr.to_string());
         write!(
             f,
             "N[{}]",
@@ -257,7 +264,7 @@ impl Graph {
     /// Returns the id of the node containing the term or None 
     /// if no term can be found
     pub fn get_term_id(&self, term: &Vec<Token>) -> Option<usize> {
-        self.nodes.iter().find_map(|(key, val)| if val.term == *term { Some(*key) } else { None })
+        self.nodes.iter().find_map(|(key, val)| if val.term_eq(term) { Some(*key) } else { None })
 
     }
 
@@ -322,19 +329,21 @@ impl Graph {
         }
     }
 
-    /// Adds a term to the graph 
-    pub fn add_term(&mut self, term: &mut Vec<Token>) -> Result<usize, ParseError> {
+    /// Adds a term to the graph consuming i consuming itt in the process.
+    pub fn add_term(&mut self, mut term: Vec<Token>) -> Result<usize, ParseError> {
         if term.is_empty() {
             return Err(ParseError::EmptyExpression);
         }
-
-        if let Some(node_id) = self.contains(term) {
+        if let Some(node_id) = self.contains(&mut term) {
             if let Some(node) = self.nodes.get_mut(&node_id) {
-                node.inc_expr();
+                node.icr_nexpr();
             }
             return Ok(node_id)
         } else {
-            if let Some(node_id) = self.integrate(term) {
+            if let Some(node_id) = self.integrate(&mut term) {
+                if let Some(node) = self.nodes.get_mut(&node_id) {
+                    node.icr_nexpr();
+                }
                 return Ok(node_id);
             }
         }
@@ -437,6 +446,17 @@ mod tests {
     }
 
     #[test]
+    fn add_term_increases_count_when_called_twice () {
+        let mut graph = Graph::new();
+        let tokens = tokenize(&"S S S ( S S ) S S".to_string()).unwrap();
+        let root = graph.add_term(tokens).unwrap();
+        assert_eq!(graph.nodes.get(&root).unwrap().nexpr(), 1);
+        let tokens = tokenize(&"S S S ( S S ) S S".to_string()).unwrap();
+        let root = graph.add_term(tokens).unwrap();
+        assert_eq!(graph.nodes.get(&root).unwrap().nexpr(), 2);
+    }
+
+    #[test]
     fn integrate_generates_all_nodes() {
         let mut graph = Graph::new();
         let test_input = "S S S ( S S ) S S"; 
@@ -471,7 +491,6 @@ mod tests {
         let mut tokens = tokenize(test_input).unwrap();
         let root = graph.integrate(&mut tokens).unwrap();
 
-        println!("Graph = {}", graph.to_string());
         let n0 = graph.contains(&tokenize("S ( S ( S S ) ( S ( S ( S S ) S ) S ) ) ( S ( S S ) S ( S ( S S ) ( S ( S ( S S ) S ) S ) ) ( S ( S ( S S ) ( S ( S ( S S ) S ) S ) ) ) )").unwrap()).unwrap();
         let n1 = graph.contains(&tokenize("S ( S S ) S ( S ( S S ) ( S ( S ( S S ) S ) S ) ) ( S ( S ( S S ) ( S ( S ( S S ) S ) S ) ) )").unwrap()).unwrap();
         let n2 = graph.contains(&tokenize("S ( S S ) S ( S ( S S ) ( S ( S ( S S ) S ) S ) )").unwrap()).unwrap();
@@ -514,5 +533,5 @@ mod tests {
 
         assert_eq!(graph.edges.get(&n9).unwrap().get_head().as_ref().unwrap().dnid(), graph.ts.id());
         assert_eq!(graph.edges.get(&n9).unwrap().get_arg().as_ref().unwrap().dnid(), graph.ts.id());
-    }
+}
 }
