@@ -202,8 +202,11 @@ impl fmt::Display for Edge {
 ///
 #[derive(Debug)]
 pub struct Graph {
-    // Outgoing edge list (one per node)
-    pub edges: HashMap<usize, Pair<Edge>>,
+    // Subexpressions: Pair of Edges representing Head & Arg
+    pub subexpressions: HashMap<usize, Pair<Edge>>,
+    // Reductions: List of Edges representing possible
+    // reduction weighted by their likelihood
+    pub reductions: HashMap<usize, Vec<Edge>>,
     // Expression Nodes by Id
     pub nodes: HashMap<usize, Node>,
     // Terminal Node I
@@ -230,7 +233,7 @@ impl fmt::Display for Graph {
         }
         node_string = node_string.trim_end_matches(", ").to_string();
         let mut edge_string: String = "".to_owned();
-        for (node, pair) in self.edges.iter() {
+        for (node, pair) in self.subexpressions.iter() {
             edge_string.push_str("\n");
             edge_string.push_str("P[");
             edge_string.push_str(&node.to_string());
@@ -253,7 +256,8 @@ impl Graph {
 
     pub fn new() -> Self {
         Self {
-            edges: HashMap::new(),
+            subexpressions: HashMap::new(),
+            reductions: HashMap::new(),
             nodes: HashMap::new(),
             ti: Node::new(vec![Token::I], false),
             tk: Node::new(vec![Token::K], false),
@@ -298,7 +302,7 @@ impl Graph {
     /// Adds an new node with the given term 
     /// and returns its assigned IDs.
     pub fn add_node(&mut self, term: Vec<Token>, is_root: bool) -> usize {
-        let node = Node::new(term, is_root); 
+        let node = Node::new(term, is_root);
         let node_id = node.id();
         self.nodes.insert(node_id, node);
         node_id.clone()
@@ -310,7 +314,7 @@ impl Graph {
     pub fn add_edge(&mut self, origin_id: &usize, destination_id: &usize, sibling: Sibling, weight: f32) {
         if self.contains_id(&origin_id) && self.contains_id(&destination_id) {
             let edge = Edge::new(*destination_id, weight);
-            if let Some(outgoing_pair) = self.edges.get_mut(&origin_id) {
+            if let Some(outgoing_pair) = self.subexpressions.get_mut(&origin_id) {
                 // Use destination_id to create an outgoing edge
                 if sibling == Sibling::HEAD {
                     outgoing_pair.set_head(edge);
@@ -324,7 +328,7 @@ impl Graph {
                 } else {
                     new_pair.set_arg(edge);
                 }
-                self.edges.insert(*origin_id, new_pair);
+                self.subexpressions.insert(*origin_id, new_pair);
             }
         }
     }
@@ -471,20 +475,20 @@ mod tests {
 
 
         assert_eq!(root, n0);
-        assert_eq!(graph.edges.get(&n0).unwrap().get_head().as_ref().unwrap().dnid(), n1);
-        assert_eq!(graph.edges.get(&n0).unwrap().get_arg().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(graph.subexpressions.get(&n0).unwrap().get_head().as_ref().unwrap().dnid(), n1);
+        assert_eq!(graph.subexpressions.get(&n0).unwrap().get_arg().as_ref().unwrap().dnid(), graph.ts.id());
 
-        assert_eq!(graph.edges.get(&n1).unwrap().get_head().as_ref().unwrap().dnid(), n2);
-        assert_eq!(graph.edges.get(&n1).unwrap().get_arg().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(graph.subexpressions.get(&n1).unwrap().get_head().as_ref().unwrap().dnid(), n2);
+        assert_eq!(graph.subexpressions.get(&n1).unwrap().get_arg().as_ref().unwrap().dnid(), graph.ts.id());
 
-        assert_eq!(graph.edges.get(&n2).unwrap().get_head().as_ref().unwrap().dnid(), n3);
-        assert_eq!(graph.edges.get(&n2).unwrap().get_arg().as_ref().unwrap().dnid(), n4);
+        assert_eq!(graph.subexpressions.get(&n2).unwrap().get_head().as_ref().unwrap().dnid(), n3);
+        assert_eq!(graph.subexpressions.get(&n2).unwrap().get_arg().as_ref().unwrap().dnid(), n4);
 
-        assert_eq!(graph.edges.get(&n3).unwrap().get_head().as_ref().unwrap().dnid(), n4);
-        assert_eq!(graph.edges.get(&n3).unwrap().get_arg().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(graph.subexpressions.get(&n3).unwrap().get_head().as_ref().unwrap().dnid(), n4);
+        assert_eq!(graph.subexpressions.get(&n3).unwrap().get_arg().as_ref().unwrap().dnid(), graph.ts.id());
 
-        assert_eq!(graph.edges.get(&n4).unwrap().get_head().as_ref().unwrap().dnid(), graph.ts.id());
-        assert_eq!(graph.edges.get(&n4).unwrap().get_arg().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(graph.subexpressions.get(&n4).unwrap().get_head().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(graph.subexpressions.get(&n4).unwrap().get_arg().as_ref().unwrap().dnid(), graph.ts.id());
 
         let mut graph = Graph::new();
         let test_input = "S ( S ( S S ) ( S ( S ( S S ) S ) S ) ) ( S ( S S ) S ( S ( S S ) ( S ( S ( S S ) S ) S ) ) ( S ( S ( S S ) ( S ( S ( S S ) S ) S ) ) ) )";
@@ -504,34 +508,34 @@ mod tests {
 
 
         assert_eq!(root, n0);
-        assert_eq!(graph.edges.get(&n0).unwrap().get_head().as_ref().unwrap().dnid(), n3);
-        assert_eq!(graph.edges.get(&n0).unwrap().get_arg().as_ref().unwrap().dnid(), n1);
+        assert_eq!(graph.subexpressions.get(&n0).unwrap().get_head().as_ref().unwrap().dnid(), n3);
+        assert_eq!(graph.subexpressions.get(&n0).unwrap().get_arg().as_ref().unwrap().dnid(), n1);
 
-        assert_eq!(graph.edges.get(&n1).unwrap().get_head().as_ref().unwrap().dnid(), n2);
-        assert_eq!(graph.edges.get(&n1).unwrap().get_arg().as_ref().unwrap().dnid(), n3);
+        assert_eq!(graph.subexpressions.get(&n1).unwrap().get_head().as_ref().unwrap().dnid(), n2);
+        assert_eq!(graph.subexpressions.get(&n1).unwrap().get_arg().as_ref().unwrap().dnid(), n3);
 
-        assert_eq!(graph.edges.get(&n2).unwrap().get_head().as_ref().unwrap().dnid(), n7);
-        assert_eq!(graph.edges.get(&n2).unwrap().get_arg().as_ref().unwrap().dnid(), n4);
+        assert_eq!(graph.subexpressions.get(&n2).unwrap().get_head().as_ref().unwrap().dnid(), n7);
+        assert_eq!(graph.subexpressions.get(&n2).unwrap().get_arg().as_ref().unwrap().dnid(), n4);
 
-        assert_eq!(graph.edges.get(&n3).unwrap().get_head().as_ref().unwrap().dnid(), graph.ts.id());
-        assert_eq!(graph.edges.get(&n3).unwrap().get_arg().as_ref().unwrap().dnid(), n4);
+        assert_eq!(graph.subexpressions.get(&n3).unwrap().get_head().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(graph.subexpressions.get(&n3).unwrap().get_arg().as_ref().unwrap().dnid(), n4);
 
-        assert_eq!(graph.edges.get(&n4).unwrap().get_head().as_ref().unwrap().dnid(), n8);
-        assert_eq!(graph.edges.get(&n4).unwrap().get_arg().as_ref().unwrap().dnid(), n5);
+        assert_eq!(graph.subexpressions.get(&n4).unwrap().get_head().as_ref().unwrap().dnid(), n8);
+        assert_eq!(graph.subexpressions.get(&n4).unwrap().get_arg().as_ref().unwrap().dnid(), n5);
 
-        assert_eq!(graph.edges.get(&n5).unwrap().get_head().as_ref().unwrap().dnid(), n6);
-        assert_eq!(graph.edges.get(&n5).unwrap().get_arg().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(graph.subexpressions.get(&n5).unwrap().get_head().as_ref().unwrap().dnid(), n6);
+        assert_eq!(graph.subexpressions.get(&n5).unwrap().get_arg().as_ref().unwrap().dnid(), graph.ts.id());
 
-        assert_eq!(graph.edges.get(&n6).unwrap().get_head().as_ref().unwrap().dnid(), graph.ts.id());
-        assert_eq!(graph.edges.get(&n6).unwrap().get_arg().as_ref().unwrap().dnid(), n7);
+        assert_eq!(graph.subexpressions.get(&n6).unwrap().get_head().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(graph.subexpressions.get(&n6).unwrap().get_arg().as_ref().unwrap().dnid(), n7);
 
-        assert_eq!(graph.edges.get(&n7).unwrap().get_head().as_ref().unwrap().dnid(), n8);
-        assert_eq!(graph.edges.get(&n7).unwrap().get_arg().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(graph.subexpressions.get(&n7).unwrap().get_head().as_ref().unwrap().dnid(), n8);
+        assert_eq!(graph.subexpressions.get(&n7).unwrap().get_arg().as_ref().unwrap().dnid(), graph.ts.id());
 
-        assert_eq!(graph.edges.get(&n8).unwrap().get_head().as_ref().unwrap().dnid(), graph.ts.id());
-        assert_eq!(graph.edges.get(&n8).unwrap().get_arg().as_ref().unwrap().dnid(), n9);
+        assert_eq!(graph.subexpressions.get(&n8).unwrap().get_head().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(graph.subexpressions.get(&n8).unwrap().get_arg().as_ref().unwrap().dnid(), n9);
 
-        assert_eq!(graph.edges.get(&n9).unwrap().get_head().as_ref().unwrap().dnid(), graph.ts.id());
-        assert_eq!(graph.edges.get(&n9).unwrap().get_arg().as_ref().unwrap().dnid(), graph.ts.id());
-}
+        assert_eq!(graph.subexpressions.get(&n9).unwrap().get_head().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(graph.subexpressions.get(&n9).unwrap().get_arg().as_ref().unwrap().dnid(), graph.ts.id());
+    }
 }
