@@ -93,9 +93,32 @@ impl Term {
         }
     }
 
-    #[doc(hidden)]
+    /// Returns the flat representation of the term as a vector of tokens.
+    ///
+    /// # Example
+    /// ```
+    /// use ruski::*;
+    /// use ruski::parser::Token;
+    ///
+    /// assert_eq!(K.flat(), vec![Token::K]);
+    /// assert_eq!(app(S, K).flat(), vec![Token::Lparen, Token::S, Token::K, Token::Rparen]);
+    /// ```
     pub fn flat(&self) -> Vec<Token> {
-        vec![]
+        let mut tokens = vec![];
+        match self {
+            Term::S => tokens.push(Token::S),
+            Term::K => tokens.push(Token::K),
+            Term::I => tokens.push(Token::I),
+            Term::App(boxed) => {
+                let (ref lhs, ref rhs) = **boxed;
+                tokens.push(Token::Lparen);
+                tokens.extend(lhs.flat());
+                tokens.extend(rhs.flat());
+                tokens.push(Token::Rparen);
+            },
+            Term::Null => (),
+        }
+        return tokens;
     }
 }
 
