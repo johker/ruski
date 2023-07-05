@@ -2,6 +2,7 @@
 
 pub use self::Term::*;
 use self::TermError::*;
+use crate::parser::{Token};
 
 /// A combinator term is either a variable representing a combinatory term, a base
 /// (S, K or I) or an application of one term to another. 
@@ -90,6 +91,11 @@ impl Term {
         } else {
             Err(NotApp)
         }
+    }
+
+    #[doc(hidden)]
+    pub fn flat(&self) -> Vec<Token> {
+        vec![]
     }
 }
 

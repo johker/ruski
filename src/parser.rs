@@ -50,7 +50,7 @@ impl fmt::Display for Token {
 /// # Examples
 pub fn parse(input: &str) {
     if let Ok(mut tokens) = tokenize(input) {
-        if let Ok(_ast) = get_ast(&mut tokens, &mut 0) {
+        if let Ok(_ast) = tokens_to_ast(&mut tokens, &mut 0) {
             // Do sth with ast
         }
     }
@@ -81,7 +81,7 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
 }
 
 #[doc(hidden)]
-pub fn get_ast(tokens: &mut Vec<Token>, pos: &mut usize) -> Result<Term, ParseError> {
+pub fn tokens_to_ast(tokens: &mut Vec<Token>, pos: &mut usize) -> Result<Term, ParseError> {
     if tokens.is_empty() {
         return Err(ParseError::EmptyExpression);
     }
@@ -96,7 +96,7 @@ pub fn get_ast(tokens: &mut Vec<Token>, pos: &mut usize) -> Result<Term, ParseEr
             Token::I => term = expand(term, I),
             Token::Lparen => {
                 *pos += 1;
-                if let Ok(subterm) = get_ast(tokens, pos) {
+                if let Ok(subterm) = tokens_to_ast(tokens, pos) {
                     term = app(term, subterm);
                 }
             }
@@ -144,7 +144,7 @@ mod tests {
     }
 
     #[test]
-    fn get_ast_generates_binary_tree() {
+    fn tokens_to_ast_generates_binary_tree() {
         let mut tokens = vec![
             Token::S,
             Token::S,
@@ -156,7 +156,7 @@ mod tests {
             Token::S,
             Token::S,
         ]; 
-        let ast = get_ast(&mut tokens, &mut 0).unwrap();
+        let ast = tokens_to_ast(&mut tokens, &mut 0).unwrap();
 
         assert_eq!(ast,app(app(app(app(app(S,S),S),app(S,S)),S),S));
     }

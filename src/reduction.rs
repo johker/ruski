@@ -2,6 +2,7 @@
 pub use self::Order::*;
 pub use self::RuleType::*;
 use crate::term::Term::*;
+use crate::parser::{Token, tokens_to_ast};
 use crate::term::{Term, app};
 use std::mem;
 
@@ -64,6 +65,43 @@ impl Matches {
 
 impl Term {
 
+    /// Count matches of SKI rule by traversing the tree
+    pub fn list_reductions(&self, tokens: &mut Vec<Token>, list: &mut Vec<Vec<Token>>) {
+        if let Ok(ast) = tokens_to_ast(tokens, &mut 0) {
+            self._list_reductions(&ast, list);
+        }
+    }
+
+    fn _list_reductions(&self, term: &Term, list: &mut Vec<Vec<Token>>) {
+        if let App(_) = *term {
+            match term.is_reducible() {
+                RuleType::SReducible => {
+                    let mut new_term = term.clone();
+                    new_term.apply_irule(&mut 0);
+                    list.push(new_term.flat());
+                },
+                RuleType::KReducible => {
+                    let mut new_term = term.clone();
+                    new_term.apply_irule(&mut 0);
+                    list.push(new_term.flat());
+                },
+                RuleType::IReducible => {
+                    let mut new_term = term.clone();
+                    new_term.apply_irule(&mut 0);
+                    list.push(new_term.flat());
+                },
+                RuleType::NotReducible => {
+                    // Do nothing 
+                },
+            }
+            if let Ok((lhs_ref, rhs_ref)) = self.unapp_ref() {
+                lhs_ref._list_reductions(term, list);
+                rhs_ref._list_reductions(term, list);
+            }
+        }
+    }
+
+
     /// Performs a reduction on a `Term` with the specified evaluation `Order` and
     /// an optional limit on the number of reductions (`0` means no limit) and 
     /// returns the reduced `Term`.
@@ -98,7 +136,6 @@ impl Term {
 
         }
     }
-
 
     /// Count matches of SKI rule by traversing the tree
     pub fn count_matches(&self, limit: usize, matches: &mut Matches) {
@@ -155,6 +192,36 @@ impl Term {
        }
    }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     /// Applies the S combinator to the term. This function 
     /// can only be safely executed if the term is SReducible.
     fn apply_srule(&mut self, count: &mut usize) { 
@@ -169,7 +236,7 @@ impl Term {
             }
         }
     }
-  
+
     /// Applies the K combinator to the term. This function 
     /// can only be safely executed if the term is KReducible.
     fn apply_krule(&mut self, count: &mut usize) { 

@@ -1,6 +1,8 @@
 
-/// Directed Acyclic Graph that represents
-/// the reduction of expressions.
+/// Graph that represents both subexpressions and the reductions.
+/// Subexpressions allow efficient representation of large terms.
+/// Reduction paths facilitate the calculation of probabilities in 
+/// an artificial chemistry.
 ///
 
 use std::fmt;
@@ -197,8 +199,8 @@ impl fmt::Display for Edge {
     }
 }
 
-/// Directed Acyclic Graph which shows how expressions
-/// break down into shared subexpressions.
+/// Graph that shows how expressions break down 
+/// into shared subexpressions and its possible reductions.
 ///
 #[derive(Debug)]
 pub struct Graph {
@@ -308,10 +310,9 @@ impl Graph {
         node_id.clone()
     }
 
-    /// Adds a connection to the directed graph from the
-    /// node with origin_id to destination_id and assigns the
+    /// Adds an edge to a subexpression from the nodes with origin_id to destination_id and assigns the
     /// weight parameter to it.
-    pub fn add_edge(&mut self, origin_id: &usize, destination_id: &usize, sibling: Sibling, weight: f32) {
+    pub fn add_subexpr_edge(&mut self, origin_id: &usize, destination_id: &usize, sibling: Sibling, weight: f32) {
         if self.contains_id(&origin_id) && self.contains_id(&destination_id) {
             let edge = Edge::new(*destination_id, weight);
             if let Some(outgoing_pair) = self.subexpressions.get_mut(&origin_id) {
@@ -354,6 +355,7 @@ impl Graph {
         return Err(ParseError::InvalidExpression);
     }
 
+
     /// Intgrates a new node into the graph
     ///
     /// # Example
@@ -371,24 +373,27 @@ impl Graph {
     pub fn integrate(&mut self, term: &mut Vec<Token>) -> Option<usize>  {
         // Check if term exists
         if let Some(node_id) = self.contains(term) {
+            // TODO: Update reduction weights? 
             return Some(node_id);
         }
-        // Create new node with connection to first primitive
-        // element.
+        // Create new node with connection to first primitive element.
         let node_id = self.add_node((*term.clone()).to_vec(), false);
+        // TODO: Breakdown of the term before popping
+        // TODO: For each potential reduction: call integrate
+
         if let Some(token) = term.pop() {
             match token {
-                Token::S => self.add_edge(&node_id, &self.ts.id(), Sibling::ARG, 0.0),
-                Token::K => self.add_edge(&node_id, &self.tk.id(), Sibling::ARG, 0.0),
-                Token::I => self.add_edge(&node_id, &self.ti.id(), Sibling::ARG, 0.0),
+                Token::S => self.add_subexpr_edge(&node_id, &self.ts.id(), Sibling::ARG, 0.0),
+                Token::K => self.add_subexpr_edge(&node_id, &self.tk.id(), Sibling::ARG, 0.0),
+                Token::I => self.add_subexpr_edge(&node_id, &self.ti.id(), Sibling::ARG, 0.0),
                 Token::Rparen => {
                     if let Some (lparen_pos) = Graph::lpidx(term) {
                         let mut arg_term = term.split_off(lparen_pos);
                         arg_term = arg_term.split_off(1); // Remove left parenthesis
                         if let Some(arg_id) = self.integrate(&mut arg_term) {
                             if let Some(head_id) = self.integrate(term) {
-                                self.add_edge(&node_id, &head_id, Sibling::HEAD, 0.0);
-                                self.add_edge(&node_id, &arg_id, Sibling::ARG, 0.0);
+                                self.add_subexpr_edge(&node_id, &head_id, Sibling::HEAD, 0.0);
+                                self.add_subexpr_edge(&node_id, &arg_id, Sibling::ARG, 0.0);
                                 return Some(node_id);
                             }
                         }
@@ -397,7 +402,7 @@ impl Graph {
                 Token::Lparen => (),
             }
             if let Some(node_id_subterm) = self.integrate(term) {
-                self.add_edge(&node_id, &node_id_subterm, Sibling::HEAD, 0.0);
+                self.add_subexpr_edge(&node_id, &node_id_subterm, Sibling::HEAD, 0.0);
             }
             return Some(node_id);
         }
@@ -406,7 +411,7 @@ impl Graph {
 
     /// Returns the first left parenthesis index that is not preceeded by
     /// a right parenthesis going from right to left of the passed token
-    /// sequence or None j.
+    /// sequence or None if no left parenthesis can be found.
     pub fn lpidx(term: &Vec<Token>) -> Option<usize> {
         let mut level = 1;
         let mut lpos = term.len() -1;
