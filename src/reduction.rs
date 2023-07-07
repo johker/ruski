@@ -66,13 +66,13 @@ impl Matches {
 impl Term {
 
     /// Count matches of SKI rule by traversing the tree
-    pub fn list_reductions(&self, tokens: &mut Vec<Token>, list: &mut Vec<Vec<Token>>) {
+    pub fn list_reductions(tokens: &mut Vec<Token>, list: &mut Vec<Vec<Token>>) {
         if let Ok(ast) = tokens_to_ast(tokens, &mut 0) {
-            self._list_reductions(&ast, list);
+            Term::_list_reductions(&ast, list);
         }
     }
 
-    fn _list_reductions(&self, term: &Term, list: &mut Vec<Vec<Token>>) {
+    fn _list_reductions(term: &Term, list: &mut Vec<Vec<Token>>) {
         if let App(_) = *term {
             match term.is_reducible() {
                 RuleType::SReducible => {
@@ -94,9 +94,9 @@ impl Term {
                     // Do nothing 
                 },
             }
-            if let Ok((lhs_ref, rhs_ref)) = self.unapp_ref() {
-                lhs_ref._list_reductions(term, list);
-                rhs_ref._list_reductions(term, list);
+            if let Ok((lhs_ref, rhs_ref)) = term.unapp_ref() {
+                Term::_list_reductions(lhs_ref, list);
+                Term::_list_reductions(rhs_ref, list);
             }
         }
     }
@@ -165,7 +165,6 @@ impl Term {
 
     }
 
-
     fn reduce_lo(&mut self, limit: usize, count: &mut usize) {
         if limit != 0 && *count == limit {
             return;
@@ -191,35 +190,6 @@ impl Term {
             }
        }
    }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     /// Applies the S combinator to the term. This function 
@@ -297,6 +267,17 @@ impl Term {
 #[cfg(test)]
 mod tests {
     use super::*; 
+    use crate::parser::tokenize;
+
+    #[test]
+    fn list_reductions_of_term() {
+        let term_str = "S ( S S S ( S S ( K K S ) S ) ) S S ( S ( K S K ) K S )";
+        let mut tokens = tokenize(&term_str).unwrap();
+        let mut reductions = vec![];
+        Term::list_reductions(&mut tokens, &mut reductions);
+        assert_eq!(reductions.len(), 6);
+        assert!(false, "TODO: check derived terms");
+    }
 
     #[test]
     fn term_is_marked_as_reducible() {

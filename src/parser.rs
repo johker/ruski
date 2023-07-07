@@ -161,5 +161,12 @@ mod tests {
         assert_eq!(ast,app(app(app(app(app(S,S),S),app(S,S)),S),S));
     }
 
+    #[test]
+    fn list_reductions_of_term() {
+        let term_str = "S ( S S S ( S S ( K K S ) S ) ) S S ( S ( K S K ) K S )";
+        let test_term = app(app(app(app(S,app(app(app(S,S),S),app(app(app(S,S),app(app(K,K),S)),S))),S),S),app(app(app(S,app(app(K,S),K)),K),S));
+        assert_eq!(tokens_to_ast(&mut tokenize(&term_str).unwrap(), &mut 0).unwrap(), test_term);
+
+    }
 
 }
