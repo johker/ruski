@@ -111,10 +111,16 @@ impl Term {
             Term::I => tokens.push(Token::I),
             Term::App(boxed) => {
                 let (ref lhs, ref rhs) = **boxed;
-                tokens.push(Token::Lparen);
                 tokens.extend(lhs.flat());
-                tokens.extend(rhs.flat());
-                tokens.push(Token::Rparen);
+                let rhs_fl = rhs.flat();
+                let rhs_fl_len = rhs_fl.len();
+                if rhs_fl_len > 1 {
+                    tokens.push(Token::Lparen);
+                }
+                tokens.extend(rhs_fl);
+                if rhs_fl_len > 1 {
+                    tokens.push(Token::Rparen);
+                }
             },
             Term::Null => (),
         }
@@ -151,4 +157,18 @@ pub fn expand(lterm: Term, rterm: Term) -> Term {
 /// ```
 pub fn app(lhs: Term, rhs: Term) -> Term {
     App(Box::new((lhs, rhs)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*; 
+    use crate::parser::tokenize;
+
+    #[test]
+    fn flat_long_term() {
+        let test_term_str = "S ( S S S ( S S ( K K S ) S ) ) S S ( S ( K S K ) K S )";
+        let mut expected_tokens = tokenize(&test_term_str).unwrap();
+        let mut test_term = app(app(app(app(S,app(app(app(S,S),S),app(app(app(S,S),app(app(K,K),S)),S))),S),S),app(app(app(S,app(app(K,S),K)),K),S));
+        assert_eq!(test_term.flat(), expected_tokens);
+    }
 }

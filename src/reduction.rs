@@ -276,6 +276,9 @@ mod tests {
         let mut reductions = vec![];
         Term::list_reductions(&mut tokens, &mut reductions);
         assert_eq!(reductions.len(), 6);
+        println!("{:?}", reductions);
+
+        let mut term_red_pos1 = app(app(app(app(S,app(app(app(S,S),S),app(app(app(S,S),app(app(K,K),S)),S))),S),S),app(app(app(S,app(app(K,S),K)),K),S));
         assert!(false, "TODO: check derived terms");
     }
 
