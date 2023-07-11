@@ -63,40 +63,104 @@ impl Matches {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[doc(hidden)]
+pub enum ReductionToken {
+    ///  Starling Symbol
+    S,
+    /// Kestrel Symbol
+    K,
+    /// Idiot Symbol
+    I,
+    /// Match S
+    MS,
+    /// Match K
+    MK,
+    /// Match I
+    MI,
+    /// Left parenthesis
+    Lparen,
+    /// Right parenthesis
+    Rparen,
+}
+
+impl fmt::Display for ReductionToken {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &*self {
+            Token::S => write!(f, "S"),
+            Token::K => write!(f, "K"),
+            Token::I => write!(f, "I"),
+            Token::MS => write!(f, "MS"),
+            Token::MK => write!(f, "MK"),
+            Token::MI => write!(f, "MI"),
+            Token::Lparen => write!(f, "("),
+            Token::Rparen => write!(f, ")"),
+        }
+
+    }
+}
+
 impl Term {
 
     /// Count matches of SKI rule by traversing the tree
     pub fn list_reductions(tokens: &mut Vec<Token>, list: &mut Vec<Vec<Token>>) {
-        if let Ok(ast) = tokens_to_ast(tokens, &mut 0) {
-            Term::_list_reductions(&ast, list);
+        if let Ok(mut ast) = tokens_to_ast(tokens, &mut 0) {
+            let mut marked_matches = vec![];
+            let mut reduced_subexpressions = vec![];
+            Term::_list_reductions(&mut ast, &mut marked_matches, &mut reduced_subexpressions);
+            // TODO: Insert reduced_subexpressions in marked_matches 
+            // to create the final list of reductions
         }
     }
 
-    fn _list_reductions(term: &Term, list: &mut Vec<Vec<Token>>) {
+    /// @param traversed_ast
+    fn _list_reductions(term: &mut Term, marked_matches: &mut Vec<ReductionToken>, reduced_subexpressions: &mut Vec<Vec<Token>>) {
+        match *term {
+            Term::S => tokens.push(ReductionToken::S),
+            Term::K => tokens.push(ReductionToken::K),
+            Term::I => tokens.push(ReductionToken::I),
+            Term::App(_) => {
+                match term.is_reducible() {
+                    RuleType::SReducible => {
+                        println!("SReducible");
+                        marked_matches.push(ReductionToken::MS);
+                        term.apply_srule(&mut 0);
+                        list.push(term.flat());
+                    },
+                    RuleType::KReducible => {
+                        println!("KReducible");
+                        marked_matches.push(ReductionToken::MK);
+                        term.apply_krule(&mut 0);
+                        list.push(term.flat());
+                    },
+                    RuleType::IReducible => {
+                        println!("IReducible");
+                        marked_matches.push(ReductionToken::MI);
+                        term.apply_irule(&mut 0);
+                        list.push(term.flat());
+                    },
+                    RuleType::NotReducible => {
+                        //TODO combine recursions flat and _list_reductions
+                        let (ref lhs, ref rhs) = **boxed;
+                        tokens.extend(lhs.flat());
+                        let rhs_fl = rhs.flat();
+                        let rhs_fl_len = rhs_fl.len();
+                        if rhs_fl_len > 1 {
+                            tokens.push(Token::Lparen);
+                        }
+                        tokens.extend(rhs_fl);
+                        if rhs_fl_len > 1 {
+                            tokens.push(Token::Rparen);
+                        }
+                    },
+                }
+            },
+            Term::Null => (),
+        }
         if let App(_) = *term {
-            match term.is_reducible() {
-                RuleType::SReducible => {
-                    let mut new_term = term.clone();
-                    new_term.apply_irule(&mut 0);
-                    list.push(new_term.flat());
-                },
-                RuleType::KReducible => {
-                    let mut new_term = term.clone();
-                    new_term.apply_irule(&mut 0);
-                    list.push(new_term.flat());
-                },
-                RuleType::IReducible => {
-                    let mut new_term = term.clone();
-                    new_term.apply_irule(&mut 0);
-                    list.push(new_term.flat());
-                },
-                RuleType::NotReducible => {
-                    // Do nothing 
-                },
-            }
-            if let Ok((lhs_ref, rhs_ref)) = term.unapp_ref() {
-                Term::_list_reductions(lhs_ref, list);
-                Term::_list_reductions(rhs_ref, list);
+            if let Ok((lhs, rhs)) = term.unapp_mut() {
+                Term::_list_reductions(lhs, marked_matches, reduced_subexpressions);
+                Term::_list_reductions(rhs, marked_matches, reduced_subexpressions);
             }
         }
     }
@@ -192,8 +256,10 @@ impl Term {
    }
 
 
-    /// Applies the S combinator to the term. This function 
-    /// can only be safely executed if the term is SReducible.
+    /// Applies the S combinator rule to the term at the specified position. 
+    /// This function can only be safely executed if the term is SReducible
+    /// at the specified position. Increases the count parameter if the operation
+    /// was successful.
     fn apply_srule(&mut self, count: &mut usize) { 
         let to_apply = mem::replace(self, Null);
         if let Ok((lhs, rhs)) = to_apply.unapp() {
@@ -275,11 +341,21 @@ mod tests {
         let mut tokens = tokenize(&term_str).unwrap();
         let mut reductions = vec![];
         Term::list_reductions(&mut tokens, &mut reductions);
-        assert_eq!(reductions.len(), 6);
-        println!("{:?}", reductions);
 
-        let mut term_red_pos1 = app(app(app(app(S,app(app(app(S,S),S),app(app(app(S,S),app(app(K,K),S)),S))),S),S),app(app(app(S,app(app(K,S),K)),K),S));
-        assert!(false, "TODO: check derived terms");
+        let mut i = 0;
+        for red in reductions.clone() {
+            i+=1;
+            println!("{}: {:?}",i, red);
+        }
+
+        // TODO: Draw results
+
+        let start = app(app(app(app(S,app(app(app(S,S),S), app(app(app(S,S),app(app(K,K),S)),S))) ,S),S), app(app(app(S,app(app(K,S),K)),K),S));
+        println!("S = {:?}", start.flat());
+        let term_reds1 = app(app(app(app(app(app(S,S),S),app(app(app(S,S),app(app(K,K),S)),S)),S),app(S,S)),app(app(app(S,app(app(K,S),K)),K),S));
+        println!("E = {:?}", term_reds1.flat());
+        assert!(reductions.contains(&term_reds1.flat()));
+        assert_eq!(reductions.len(), 6);
     }
 
     #[test]
@@ -294,6 +370,15 @@ mod tests {
         let mut test_term = app(app(app(S, I), I), K);
         test_term.apply_srule(&mut 0);
         assert_eq!(test_term, app(app(I, K), app(I, K)));
+    }
+
+    #[test]
+    fn subterm_is_reduced_by_srule() {
+        let mut test_term = app(I,app(app(app(S, I), I), K));
+        if let Ok((_remainder, term_to_reduce)) = test_term.unapp_mut() {
+            term_to_reduce.apply_srule(&mut 0);
+        }
+        assert_eq!(test_term, app(I, app(app(I, K), app(I, K))));
     }
 
     #[test]
