@@ -5,6 +5,7 @@ use crate::term::Term::*;
 use crate::parser::{Token, tokens_to_ast};
 use crate::term::{Term, app};
 use std::mem;
+use std::fmt;
 
 /// The [evaluation
 /// order](https://writings.stephenwolfram.com/2020/12/combinators-a-centennial-view/#the-question-of-evaluation-order)
@@ -87,14 +88,14 @@ pub enum ReductionToken {
 impl fmt::Display for ReductionToken {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &*self {
-            Token::S => write!(f, "S"),
-            Token::K => write!(f, "K"),
-            Token::I => write!(f, "I"),
-            Token::MS => write!(f, "MS"),
-            Token::MK => write!(f, "MK"),
-            Token::MI => write!(f, "MI"),
-            Token::Lparen => write!(f, "("),
-            Token::Rparen => write!(f, ")"),
+            ReductionToken::S => write!(f, "S"),
+            ReductionToken::K => write!(f, "K"),
+            ReductionToken::I => write!(f, "I"),
+            ReductionToken::MS => write!(f, "MS"),
+            ReductionToken::MK => write!(f, "MK"),
+            ReductionToken::MI => write!(f, "MI"),
+            ReductionToken::Lparen => write!(f, "("),
+            ReductionToken::Rparen => write!(f, ")"),
         }
 
     }
@@ -105,64 +106,98 @@ impl Term {
     /// Count matches of SKI rule by traversing the tree
     pub fn list_reductions(tokens: &mut Vec<Token>, list: &mut Vec<Vec<Token>>) {
         if let Ok(mut ast) = tokens_to_ast(tokens, &mut 0) {
-            let mut marked_matches = vec![];
             let mut reduced_subexpressions = vec![];
-            Term::_list_reductions(&mut ast, &mut marked_matches, &mut reduced_subexpressions);
-            // TODO: Insert reduced_subexpressions in marked_matches 
-            // to create the final list of reductions
+            let marked_matches = Term::_list_reductions(&mut ast, &mut reduced_subexpressions);
+            let mut rsexpr_idx = 0;
+            for rsexpr in reduced_subexpressions {
+                let mut reduction = vec![];
+                let mut mm_idx = 0;
+                for token in marked_matches {
+                    match token {
+                        ReductionToken::S => reduction.push(Token::S),
+                        ReductionToken::K => reduction.push(Token::K),
+                        ReductionToken::I => reduction.push(Token::I),
+                        ReductionToken::Lparen => reduction.push(Token::Lparen),
+                        ReductionToken::Rparen => reduction.push(Token::Rparen),
+                        ReductionToken::MS => {
+                            if mm_idx == rsexpr_idx {
+                                reduction.extend(rsexpr);
+                            } else {
+                                reduction.push(Token::S);
+                            }
+                        },
+                        ReductionToken::MK => {
+                            if mm_idx == rsexpr_idx {
+                                reduction.extend(rsexpr);
+                            } else {
+                                reduction.push(Token::K);
+                            }
+                        },
+                        ReductionToken::MI => {
+                            if mm_idx == rsexpr_idx {
+                                reduction.extend(rsexpr);
+                            } else {
+                                reduction.push(Token::I);
+                            }
+                        },
+                    }
+                    mm_idx += 1;
+                }
+                reduced_subexpressions.push(reduction); 
+                rsexpr_idx += 1;
+            }
         }
     }
 
-    /// @param traversed_ast
-    fn _list_reductions(term: &mut Term, marked_matches: &mut Vec<ReductionToken>, reduced_subexpressions: &mut Vec<Vec<Token>>) {
-        match *term {
+    /// Transforms the term tree into a flat expression vector of ReductionToken. 
+    /// For each match of S,K,I rule a match is marked in the flat expression.
+    fn _list_reductions(term: &Term, reduced_subexpressions: &mut Vec<Vec<Token>>) -> Vec<ReductionToken>{
+        let mut tokens = vec![];
+        match term {
             Term::S => tokens.push(ReductionToken::S),
             Term::K => tokens.push(ReductionToken::K),
             Term::I => tokens.push(ReductionToken::I),
-            Term::App(_) => {
+            Term::App(boxed) => {
                 match term.is_reducible() {
                     RuleType::SReducible => {
                         println!("SReducible");
-                        marked_matches.push(ReductionToken::MS);
-                        term.apply_srule(&mut 0);
-                        list.push(term.flat());
+                        tokens.push(ReductionToken::MS);
+                        let sub_expr = term.clone();
+                        sub_expr.apply_srule(&mut 0);
+                        reduced_subexpressions.push(sub_expr.flat());
                     },
                     RuleType::KReducible => {
                         println!("KReducible");
-                        marked_matches.push(ReductionToken::MK);
-                        term.apply_krule(&mut 0);
-                        list.push(term.flat());
+                        tokens.push(ReductionToken::MK);
+                        let sub_expr = term.clone();
+                        sub_expr.apply_krule(&mut 0);
+                        reduced_subexpressions.push(sub_expr.flat());
                     },
                     RuleType::IReducible => {
                         println!("IReducible");
-                        marked_matches.push(ReductionToken::MI);
-                        term.apply_irule(&mut 0);
-                        list.push(term.flat());
+                        tokens.push(ReductionToken::MI);
+                        let sub_expr = term.clone();
+                        sub_expr.apply_irule(&mut 0);
+                        reduced_subexpressions.push(sub_expr.flat());
                     },
                     RuleType::NotReducible => {
-                        //TODO combine recursions flat and _list_reductions
                         let (ref lhs, ref rhs) = **boxed;
-                        tokens.extend(lhs.flat());
-                        let rhs_fl = rhs.flat();
+                        tokens.extend(Term::_list_reductions(lhs, reduced_subexpressions));
+                        let rhs_fl = Term::_list_reductions(rhs, reduced_subexpressions);
                         let rhs_fl_len = rhs_fl.len();
                         if rhs_fl_len > 1 {
-                            tokens.push(Token::Lparen);
+                            tokens.push(ReductionToken::Lparen);
                         }
                         tokens.extend(rhs_fl);
                         if rhs_fl_len > 1 {
-                            tokens.push(Token::Rparen);
+                            tokens.push(ReductionToken::Rparen);
                         }
                     },
                 }
             },
             Term::Null => (),
         }
-        if let App(_) = *term {
-            if let Ok((lhs, rhs)) = term.unapp_mut() {
-                Term::_list_reductions(lhs, marked_matches, reduced_subexpressions);
-                Term::_list_reductions(rhs, marked_matches, reduced_subexpressions);
-            }
-        }
+        return tokens;
     }
 
 
