@@ -112,7 +112,7 @@ impl Term {
             for rsexpr in reduced_subexpressions {
                 let mut reduction = vec![];
                 let mut mm_idx = 0;
-                for token in marked_matches {
+                for token in &marked_matches {
                     match token {
                         ReductionToken::S => reduction.push(Token::S),
                         ReductionToken::K => reduction.push(Token::K),
@@ -121,21 +121,21 @@ impl Term {
                         ReductionToken::Rparen => reduction.push(Token::Rparen),
                         ReductionToken::MS => {
                             if mm_idx == rsexpr_idx {
-                                reduction.extend(rsexpr);
+                                reduction.extend(rsexpr.clone());
                             } else {
                                 reduction.push(Token::S);
                             }
                         },
                         ReductionToken::MK => {
                             if mm_idx == rsexpr_idx {
-                                reduction.extend(rsexpr);
+                                reduction.extend(rsexpr.clone());
                             } else {
                                 reduction.push(Token::K);
                             }
                         },
                         ReductionToken::MI => {
                             if mm_idx == rsexpr_idx {
-                                reduction.extend(rsexpr);
+                                reduction.extend(rsexpr.clone());
                             } else {
                                 reduction.push(Token::I);
                             }
@@ -143,7 +143,7 @@ impl Term {
                     }
                     mm_idx += 1;
                 }
-                reduced_subexpressions.push(reduction); 
+                list.push(reduction); 
                 rsexpr_idx += 1;
             }
         }
@@ -162,21 +162,21 @@ impl Term {
                     RuleType::SReducible => {
                         println!("SReducible");
                         tokens.push(ReductionToken::MS);
-                        let sub_expr = term.clone();
+                        let mut sub_expr = term.clone();
                         sub_expr.apply_srule(&mut 0);
                         reduced_subexpressions.push(sub_expr.flat());
                     },
                     RuleType::KReducible => {
                         println!("KReducible");
                         tokens.push(ReductionToken::MK);
-                        let sub_expr = term.clone();
+                        let mut sub_expr = term.clone();
                         sub_expr.apply_krule(&mut 0);
                         reduced_subexpressions.push(sub_expr.flat());
                     },
                     RuleType::IReducible => {
                         println!("IReducible");
                         tokens.push(ReductionToken::MI);
-                        let sub_expr = term.clone();
+                        let mut sub_expr = term.clone();
                         sub_expr.apply_irule(&mut 0);
                         reduced_subexpressions.push(sub_expr.flat());
                     },
