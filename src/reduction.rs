@@ -417,17 +417,70 @@ mod tests {
         let mut i = 0;
         for red in reductions.clone() {
             i+=1;
-            println!("{}: {:?}",i, red);
+            //println!("{}: {:?}",i, red);
         }
 
-        // TODO: Draw results
+        //  S Rule
+        //
+        //          o                  o
+        //         / \               /   \
+        //        o   z             o     o
+        //       / \        =>     / \   / \
+        //      o   y             x   z y   z
+        //     / \
+        //    s   x
+        //
+        //  K Rule
+        //
+        //         o
+        //        / \
+        //       o   y      =>     x
+        //     / \
+        //    k  x
+        //
+        //
 
-        let start = app(app(app(app(S,app(app(app(S,S),S), app(app(app(S,S),app(app(K,K),S)),S))) ,S),S), app(app(app(S,app(app(K,S),K)),K),S));
-        println!("S = {:?}", start.flat());
-        let term_reds1 = app(app(app(app(app(app(S,S),S),app(app(app(S,S),app(app(K,K),S)),S)),S),app(S,S)),app(app(app(S,app(app(K,S),K)),K),S));
-        println!("E = {:?}", term_reds1.flat());
-        assert!(reductions.contains(&term_reds1.flat()));
+        let rt = app(app(app(S,app(app(K,S),K)),K),S);
+        let lt = app(app(app(S,app(app(app(S,S),S),app(app(app(S,S),app(app(K,K),S)),S))),S),S);
+        let test_term = app(lt.clone(),rt.clone());
+
+        let x1 = app(app(app(S,S),S),app(app(app(S,S),app(app(K,K),S)),S));
+        let y1 = S;
+        let z1 = S;
+        let red_term1 = app(app(app(x1,z1.clone()),app(y1,z1)),rt.clone());
+
+        let x2 = S;
+        let y2 = S;
+        let z2 = app(app(app(S,S),app(app(K,K),S)),S);
+        let red_term2 = app(app(app(app(S,app(app(x2,z2.clone()),app(y2,z2))),S),S),rt.clone());
+
+        let x3 = S;
+        let y3 = app(app(K,K),S);
+        let z3 = S;
+        let red_term3 = app(app(app(app(S,app(app(app(S,S),S),app(app(x3,z3.clone()),app(y3,z3)))),S),S),rt.clone());
+
+        let x4 = K;
+        let y4 = S;
+        let red_term4 = app(app(app(app(S,app(app(app(S,S),S),app(app(app(S,S),x4),S))),S),S),rt.clone());
+
+        let x5 = app(app(K,S),K);
+        let y5 = K;
+        let z5 = S;
+        let red_term5 = app(lt.clone(),app(app(x5,z5.clone()),app(y5,z5)));
+
+        let x6 = S;
+        let y6 = K;
+        let red_term6 = app(lt.clone(),app(app(app(S,x6),K),S));
+
+        println!("S = {:?}", test_term.flat());
+        println!("E = {:?}", red_term1.flat());
         assert_eq!(reductions.len(), 6);
+        assert!(reductions.contains(&red_term1.flat()));
+        assert!(reductions.contains(&red_term2.flat()));
+        assert!(reductions.contains(&red_term3.flat()));
+        assert!(reductions.contains(&red_term4.flat()));
+        assert!(reductions.contains(&red_term5.flat()));
+        assert!(reductions.contains(&red_term6.flat()));
     }
 
     #[test]
