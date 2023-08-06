@@ -101,7 +101,7 @@ impl Term {
     /// use ruski::parser::Token;
     ///
     /// assert_eq!(K.flat(), vec![Token::K]);
-    /// assert_eq!(app(S, K).flat(), vec![Token::Lparen, Token::S, Token::K, Token::Rparen]);
+    /// assert_eq!(app(S, K).flat(), vec![Token::S, Token::K]);
     /// ```
     pub fn flat(&self) -> Vec<Token> {
         let mut tokens = vec![];
@@ -167,8 +167,8 @@ mod tests {
     #[test]
     fn flat_long_term() {
         let test_term_str = "S ( S S S ( S S ( K K S ) S ) ) S S ( S ( K S K ) K S )";
-        let mut expected_tokens = tokenize(&test_term_str).unwrap();
-        let mut test_term = app(app(app(app(S,app(app(app(S,S),S),app(app(app(S,S),app(app(K,K),S)),S))),S),S),app(app(app(S,app(app(K,S),K)),K),S));
+        let expected_tokens = tokenize(&test_term_str).unwrap();
+        let test_term = app(app(app(app(S,app(app(app(S,S),S),app(app(app(S,S),app(app(K,K),S)),S))),S),S),app(app(app(S,app(app(K,S),K)),K),S));
         assert_eq!(test_term.flat(), expected_tokens);
     }
 }

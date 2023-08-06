@@ -5,7 +5,6 @@ use crate::term::Term::*;
 use crate::parser::{Token, tokens_to_ast};
 use crate::term::{Term, app};
 use std::mem;
-use std::fmt;
 
 /// The [evaluation
 /// order](https://writings.stephenwolfram.com/2020/12/combinators-a-centennial-view/#the-question-of-evaluation-order)
@@ -64,178 +63,72 @@ impl Matches {
     }
 }
 
-pub struct Reduction {
-    reduced_seq: Vec<Token>,
-    orig_seq_len: usize,
-}
-
-impl Reduction {
-
-    pub fn new() -> Self {
-        Reduction {
-            reduced_seq: vec![],
-            orig_seq_len: 0,
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-#[doc(hidden)]
-pub enum ReductionToken {
-    ///  Starling Symbol
-    S,
-    /// Kestrel Symbol
-    K,
-    /// Idiot Symbol
-    I,
-    /// Match
-    M,
-    /// Left parenthesis
-    Lparen,
-    /// Right parenthesis
-    Rparen,
-}
-
-impl fmt::Display for ReductionToken {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &*self {
-            ReductionToken::S => write!(f, "S"),
-            ReductionToken::K => write!(f, "K"),
-            ReductionToken::I => write!(f, "I"),
-            ReductionToken::M => write!(f, "M"),
-            ReductionToken::Lparen => write!(f, "("),
-            ReductionToken::Rparen => write!(f, ")"),
-        }
-
-    }
-}
 
 impl Term {
 
-    /// Count matches of SKI rule by traversing the tree
-    pub fn list_reductions(tokens: &mut Vec<Token>, list: &mut Vec<Vec<Token>>) {
-        if let Ok(mut ast) = tokens_to_ast(tokens, &mut 0) {
-            let mut reductions = vec![];
-            let marked_matches = Term::_list_reductions(&mut ast, &mut reductions);
-            let mut reduction_idx = 0;
-            for r in reductions {
-                let mut reduced_term = vec![];
-                // Marked match index:
-                let mut mm_idx = 0; 
-                for token in &marked_matches {
-                    let mut mm_replaced = false;
-                    // Number of tokens after marked match
-                    let mut mm_seq_count = 0; 
-                    match token {
-                        ReductionToken::S => {
-                            if !mm_replaced || mm_seq_count > r.orig_seq_len {
-                                reduced_term.push(Token::S);
-                            }
-                        },
-                        ReductionToken::K => {
-                            if !mm_replaced || mm_seq_count > r.orig_seq_len {
-                                reduced_term.push(Token::K);
-                            }
-                        },
-                        ReductionToken::I => {
-                            if !mm_replaced || mm_seq_count > r.orig_seq_len {
-                                reduced_term.push(Token::I);
-                            }
-                        },
-                        ReductionToken::Lparen => {
-                            if !mm_replaced || mm_seq_count > r.orig_seq_len {
-                                reduced_term.push(Token::Lparen);
-                            }
-                        },
-                        ReductionToken::Rparen => {
-                            if !mm_replaced || mm_seq_count > r.orig_seq_len {
-                                reduced_term.push(Token::Rparen)
-                            }
-                        },
-                        ReductionToken::M => {
-                            if mm_idx == reduction_idx {
-                                reduced_term.extend(r.reduced_seq.clone());
-                                mm_replaced = true;
-                            }
-                        },
-                    }
-                    if mm_replaced {
-                        mm_seq_count += 1;
-                    }
-                    mm_idx += 1;
+    /// as well as the number of tokens they are replacing (not_red_expr_sizes).
+    /// Reduces the AST of the passed token sequence for every possible match
+    /// and pushes the flat token sequence to the reductions vector.
+    pub fn derive_reductions(tokens: &mut Vec<Token>, reductions: &mut Vec<Vec<Token>>) {
+        if let Ok(ast) = tokens_to_ast(tokens, &mut 0) {
+            let mut n = 0; // Number applied reductions
+            let mut m = 0; // Number of possible reductions in current iteration
+            loop {
+                let mut next_reduced_term = ast.clone();
+                if !next_reduced_term.reduce_nth_match(&mut m, &mut n) {
+                    break; // No new match
                 }
-                list.push(reduced_term); 
-                reduction_idx += 1;
+                reductions.push(next_reduced_term.flat());
+                m = 0;
             }
         }
     }
 
-
-    /// Transforms the term tree into a flat expression vector of ReductionToken. 
-    /// For each match of S,K,I rule a match is marked in the flat expression.
-    /// The reduced subexpressions are stored as flat tokens sequence in red_sub_exprs 
-    /// as well as the number of tokens they are replacing (not_red_expr_sizes).
-    fn _list_reductions(term: &Term, reductions: &mut Vec<Reduction>) -> Vec<ReductionToken>{
-        let mut tokens = vec![];
-        match term {
-            Term::S => tokens.push(ReductionToken::S),
-            Term::K => tokens.push(ReductionToken::K),
-            Term::I => tokens.push(ReductionToken::I),
-            Term::App(boxed) => {
-                let mut reduction = Reduction::new();
-                match term.is_reducible() {
-                    RuleType::SReducible => {
-                        println!("SReducible");
-                        tokens.push(ReductionToken::M);
-                        let mut sub_expr = term.clone();
-                        sub_expr.apply_srule(&mut 0);
-                        reduction.reduced_seq = sub_expr.flat();
-                    },
-                    RuleType::KReducible => {
-                        println!("KReducible");
-                        tokens.push(ReductionToken::M);
-                        let mut sub_expr = term.clone();
-                        sub_expr.apply_krule(&mut 0);
-                        reduction.reduced_seq = sub_expr.flat();
-                    },
-                    RuleType::IReducible => {
-                        println!("IReducible");
-                        tokens.push(ReductionToken::M);
-                        let mut sub_expr = term.clone();
-                        sub_expr.apply_irule(&mut 0);
-                        reduction.reduced_seq = sub_expr.flat();
-                    },
-                    RuleType::NotReducible => (),
+    /// Recursively traverses the AST and increases the current match index m
+    /// if a reduction rule matches. Applies the nth possible reduction to the term.
+    /// Once a reduction is applied it returns true, false otherwise.
+    fn reduce_nth_match(&mut self, m: &mut usize, n: &mut usize) -> bool{
+        if let App(_) = *self {
+            match self.is_reducible() {
+                RuleType::SReducible => {
+                    *m += 1;
+                    if m > n {
+                        self.apply_srule(&mut 0);
+                        *n += 1;
+                        return true;
+                    }
+                },
+                RuleType::KReducible => {
+                    *m += 1;
+                    if *m > *n {
+                        self.apply_krule(&mut 0);
+                        *n += 1;
+                        return true;
+                    }
+                },
+                RuleType::IReducible => {
+                    *m += 1;
+                    if *m > *n {
+                        self.apply_irule(&mut 0);
+                        *n += 1;
+                        return true;
+                   }
+                },
+                RuleType::NotReducible => (),
+            }
+            if let Ok((ref mut lhs_ref, ref mut rhs_ref)) = self.unapp_mut() {
+                if lhs_ref.reduce_nth_match(m, n) {
+                    return true;
                 }
-                let (ref lhs, ref rhs) = **boxed;
-                let mut sub_expr_length = 0;
-                let lhs_fl = Term::_list_reductions(lhs, reductions);
-                let lhs_fl_len = lhs_fl.len();
-                sub_expr_length += lhs_fl_len;
-                tokens.extend(lhs_fl);
-                let rhs_fl = Term::_list_reductions(rhs, reductions);
-                let rhs_fl_len = rhs_fl.len();
-                if rhs_fl_len > 1 {
-                    tokens.push(ReductionToken::Lparen);
-                    sub_expr_length += 1;
+                if rhs_ref.reduce_nth_match(m, n) {
+                    return true;
                 }
-                sub_expr_length += rhs_fl_len;
-                tokens.extend(rhs_fl);
-                if rhs_fl_len > 1 {
-                    tokens.push(ReductionToken::Rparen);
-                    sub_expr_length += 1;
-                }
-                if reduction.reduced_seq.len() > 0 {
-                    // If there was a match sub_expr_length is the lenght of the
-                    // flat token sequence to be replaced by the reduced subexpression
-                    reduction.orig_seq_len = sub_expr_length;
-                    reductions.push(reduction);
-                }
-            },
-            Term::Null => (),
+            }
         }
-        return tokens;
+        return false;
     }
+
+
 
 
     /// Performs a reduction on a `Term` with the specified evaluation `Order` and
@@ -273,7 +166,8 @@ impl Term {
         }
     }
 
-    /// Count matches of SKI rule by traversing the tree
+    /// Count matches up to the defined limit (or indefinitevly for limit 0)
+    /// of SKI rule by traversing the tree.
     pub fn count_matches(&self, limit: usize, matches: &mut Matches) {
         if limit != 0 && matches.sum() == limit {
             return;
@@ -412,13 +306,7 @@ mod tests {
         let term_str = "S ( S S S ( S S ( K K S ) S ) ) S S ( S ( K S K ) K S )";
         let mut tokens = tokenize(&term_str).unwrap();
         let mut reductions = vec![];
-        Term::list_reductions(&mut tokens, &mut reductions);
-
-        let mut i = 0;
-        for red in reductions.clone() {
-            i+=1;
-            //println!("{}: {:?}",i, red);
-        }
+        Term::derive_reductions(&mut tokens, &mut reductions);
 
         //  S Rule
         //
@@ -442,7 +330,7 @@ mod tests {
 
         let rt = app(app(app(S,app(app(K,S),K)),K),S);
         let lt = app(app(app(S,app(app(app(S,S),S),app(app(app(S,S),app(app(K,K),S)),S))),S),S);
-        let test_term = app(lt.clone(),rt.clone());
+        let _test_term = app(lt.clone(),rt.clone());
 
         let x1 = app(app(app(S,S),S),app(app(app(S,S),app(app(K,K),S)),S));
         let y1 = S;
@@ -460,7 +348,7 @@ mod tests {
         let red_term3 = app(app(app(app(S,app(app(app(S,S),S),app(app(x3,z3.clone()),app(y3,z3)))),S),S),rt.clone());
 
         let x4 = K;
-        let y4 = S;
+        let _y4 = S;
         let red_term4 = app(app(app(app(S,app(app(app(S,S),S),app(app(app(S,S),x4),S))),S),S),rt.clone());
 
         let x5 = app(app(K,S),K);
@@ -469,11 +357,9 @@ mod tests {
         let red_term5 = app(lt.clone(),app(app(x5,z5.clone()),app(y5,z5)));
 
         let x6 = S;
-        let y6 = K;
+        let _y6 = K;
         let red_term6 = app(lt.clone(),app(app(app(S,x6),K),S));
 
-        println!("S = {:?}", test_term.flat());
-        println!("E = {:?}", red_term1.flat());
         assert_eq!(reductions.len(), 6);
         assert!(reductions.contains(&red_term1.flat()));
         assert!(reductions.contains(&red_term2.flat()));
