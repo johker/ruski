@@ -66,7 +66,6 @@ impl Matches {
 
 impl Term {
 
-    /// as well as the number of tokens they are replacing (not_red_expr_sizes).
     /// Reduces the AST of the passed token sequence for every possible match
     /// and pushes the flat token sequence to the reductions vector.
     pub fn derive_reductions(tokens: &mut Vec<Token>, reductions: &mut Vec<Vec<Token>>) {
@@ -100,7 +99,7 @@ impl Term {
                 },
                 RuleType::KReducible => {
                     *m += 1;
-                    if *m > *n {
+                    if m > n {
                         self.apply_krule(&mut 0);
                         *n += 1;
                         return true;
@@ -108,7 +107,7 @@ impl Term {
                 },
                 RuleType::IReducible => {
                     *m += 1;
-                    if *m > *n {
+                    if m > n {
                         self.apply_irule(&mut 0);
                         *n += 1;
                         return true;
@@ -135,7 +134,7 @@ impl Term {
     /// an optional limit on the number of reductions (`0` means no limit) and 
     /// returns the reduced `Term`.
     ///
-    /// TODO: Add Example
+    /// TODO: Add reductions for evaluation orders 
     pub fn reduce(&mut self, order: Order, limit: usize) -> usize{
         let mut count = 0;
         match order {
@@ -302,7 +301,7 @@ mod tests {
     use crate::parser::tokenize;
 
     #[test]
-    fn list_reductions_of_term() {
+    fn derive_reductions_of_term() {
         let term_str = "S ( S S S ( S S ( K K S ) S ) ) S S ( S ( K S K ) K S )";
         let mut tokens = tokenize(&term_str).unwrap();
         let mut reductions = vec![];

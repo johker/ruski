@@ -10,6 +10,7 @@ use std::fmt::Display;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use crate::parser::{Token, ParseError};
+use crate::term::Term;
 
 static NODE_COUNTER: AtomicUsize = AtomicUsize::new(1);
 
@@ -345,7 +346,7 @@ impl Graph {
             }
             return Ok(node_id)
         } else {
-            if let Some(node_id) = self.integrate(&mut term) {
+            if let Some(node_id) = self.integrate(&mut term, 0) {
                 if let Some(node) = self.nodes.get_mut(&node_id) {
                     node.icr_nexpr();
                 }
@@ -365,22 +366,32 @@ impl Graph {
     /// 
     /// let graph = Graph::new();
     /// let term = vec![S,S,S,Lparen,S,S,Rparen,S,S];
-    /// assert_eq!(graph.integrate(term), Some(5));
+    /// assert_eq!(graph.integrate(term), Some(5), 0);
     ///
     /// # Errors 
     ///
     /// Return None if the expression is invalid
-    pub fn integrate(&mut self, term: &mut Vec<Token>) -> Option<usize>  {
+    pub fn integrate(&mut self, term: &mut Vec<Token>, level: usize) -> Option<usize>  {
+        if level > 1 {
+            return None;
+        }
         // Check if term exists
         if let Some(node_id) = self.contains(term) {
-            // TODO: Update reduction weights? 
+            println!("Term already exists");
+            // TODO: Update reduction weights?
             return Some(node_id);
         }
         // Create new node with connection to first primitive element.
         let node_id = self.add_node((*term.clone()).to_vec(), false);
-        // TODO: Breakdown of the term before popping
-        // TODO: For each potential reduction: call integrate
-
+        let mut reductions = vec![];
+        // Breakdown potential reductions of the term 
+        Term::derive_reductions(term, &mut reductions);
+        println!("Found {} potential reductions", reductions.len());
+        for mut red_term in reductions {
+            // For each potential reduction: call integrate
+            self.integrate(&mut red_term, level+1);
+            // TODO: Mark edge as potential reduction
+        }
         if let Some(token) = term.pop() {
             match token {
                 Token::S => self.add_subexpr_edge(&node_id, &self.ts.id(), Sibling::ARG, 0.0),
@@ -390,8 +401,8 @@ impl Graph {
                     if let Some (lparen_pos) = Graph::lpidx(term) {
                         let mut arg_term = term.split_off(lparen_pos);
                         arg_term = arg_term.split_off(1); // Remove left parenthesis
-                        if let Some(arg_id) = self.integrate(&mut arg_term) {
-                            if let Some(head_id) = self.integrate(term) {
+                        if let Some(arg_id) = self.integrate(&mut arg_term, level) {
+                            if let Some(head_id) = self.integrate(term, level) {
                                 self.add_subexpr_edge(&node_id, &head_id, Sibling::HEAD, 0.0);
                                 self.add_subexpr_edge(&node_id, &arg_id, Sibling::ARG, 0.0);
                                 return Some(node_id);
@@ -401,7 +412,7 @@ impl Graph {
                 },
                 Token::Lparen => (),
             }
-            if let Some(node_id_subterm) = self.integrate(term) {
+            if let Some(node_id_subterm) = self.integrate(term, level) {
                 self.add_subexpr_edge(&node_id, &node_id_subterm, Sibling::HEAD, 0.0);
             }
             return Some(node_id);
@@ -470,7 +481,7 @@ mod tests {
         let mut graph = Graph::new();
         let test_input = "S S S ( S S ) S S"; 
         let mut tokens = tokenize(test_input).unwrap();
-        let root = graph.integrate(&mut tokens).unwrap();
+        let root = graph.integrate(&mut tokens, 0).unwrap();
 
         let n0 = graph.contains(&tokenize("S S S ( S S ) S S").unwrap()).unwrap();
         let n1 = graph.contains(&tokenize("S S S ( S S ) S").unwrap()).unwrap();
@@ -498,7 +509,7 @@ mod tests {
         let mut graph = Graph::new();
         let test_input = "S ( S ( S S ) ( S ( S ( S S ) S ) S ) ) ( S ( S S ) S ( S ( S S ) ( S ( S ( S S ) S ) S ) ) ( S ( S ( S S ) ( S ( S ( S S ) S ) S ) ) ) )";
         let mut tokens = tokenize(test_input).unwrap();
-        let root = graph.integrate(&mut tokens).unwrap();
+        let root = graph.integrate(&mut tokens, 0).unwrap();
 
         let n0 = graph.contains(&tokenize("S ( S ( S S ) ( S ( S ( S S ) S ) S ) ) ( S ( S S ) S ( S ( S S ) ( S ( S ( S S ) S ) S ) ) ( S ( S ( S S ) ( S ( S ( S S ) S ) S ) ) ) )").unwrap()).unwrap();
         let n1 = graph.contains(&tokenize("S ( S S ) S ( S ( S S ) ( S ( S ( S S ) S ) S ) ) ( S ( S ( S S ) ( S ( S ( S S ) S ) S ) ) )").unwrap()).unwrap();
