@@ -28,6 +28,31 @@ pub enum Order {
     IR,
 }
 
+/// Reduced Term and rule to get there
+#[derive(Debug, PartialEq, Eq)]
+pub struct Reduction {
+    rule_type: RuleType,
+    reduced_term: Vec<Token>,
+}
+
+impl Reduction {
+
+    pub fn new(rule_type: RuleType, reduced_term: Vec<Token>) -> Self {
+        Reduction {
+            rule_type: rule_type,
+            reduced_term: reduced_term,
+        }
+    }
+
+    pub fn rule(&self) -> &RuleType {
+        &self.rule_type
+    }
+
+    pub fn term(&mut self) -> &mut Vec<Token> {
+        &mut self.reduced_term
+    }
+}
+
 /// Describes the Rule that applies to a node 
 /// in an AST
 #[derive(Debug, PartialEq, Eq)]
@@ -68,17 +93,18 @@ impl Term {
 
     /// Reduces the AST of the passed token sequence for every possible match
     /// and pushes the flat token sequence to the reductions vector.
-    pub fn derive_reductions(tokens: &mut Vec<Token>, reductions: &mut Vec<Vec<Token>>) {
+    pub fn derive_reductions(tokens: &mut Vec<Token>, reductions: &mut Vec<Reduction>) {
         if let Ok(ast) = tokens_to_ast(tokens, &mut 0) {
             let mut n = 0; // Number applied reductions
             let mut m = 0; // Number of possible reductions in current iteration
             loop {
                 let mut next_reduced_term = ast.clone();
-                if !next_reduced_term.reduce_nth_match(&mut m, &mut n) {
+                if let Some(rule_type) = next_reduced_term.reduce_nth_match(&mut m, &mut n) {
+                    reductions.push(Reduction::new(rule_type, next_reduced_term.flat()));
+                    m = 0;
+                } else {
                     break; // No new match
                 }
-                reductions.push(next_reduced_term.flat());
-                m = 0;
             }
         }
     }
@@ -86,7 +112,7 @@ impl Term {
     /// Recursively traverses the AST and increases the current match index m
     /// if a reduction rule matches. Applies the nth possible reduction to the term.
     /// Once a reduction is applied it returns true, false otherwise.
-    fn reduce_nth_match(&mut self, m: &mut usize, n: &mut usize) -> bool{
+    fn reduce_nth_match(&mut self, m: &mut usize, n: &mut usize) -> Option<RuleType> {
         if let App(_) = *self {
             match self.is_reducible() {
                 RuleType::SReducible => {
@@ -94,7 +120,7 @@ impl Term {
                     if m > n {
                         self.apply_srule(&mut 0);
                         *n += 1;
-                        return true;
+                        return Some(RuleType::SReducible);
                     }
                 },
                 RuleType::KReducible => {
@@ -102,7 +128,7 @@ impl Term {
                     if m > n {
                         self.apply_krule(&mut 0);
                         *n += 1;
-                        return true;
+                        return Some(RuleType::KReducible);
                     }
                 },
                 RuleType::IReducible => {
@@ -110,21 +136,21 @@ impl Term {
                     if m > n {
                         self.apply_irule(&mut 0);
                         *n += 1;
-                        return true;
+                        return Some(RuleType::IReducible);
                    }
                 },
                 RuleType::NotReducible => (),
             }
             if let Ok((ref mut lhs_ref, ref mut rhs_ref)) = self.unapp_mut() {
-                if lhs_ref.reduce_nth_match(m, n) {
-                    return true;
+                if let Some(rule_type) = lhs_ref.reduce_nth_match(m, n) {
+                    return Some(rule_type);
                 }
-                if rhs_ref.reduce_nth_match(m, n) {
-                    return true;
+                if let Some(rule_type) = rhs_ref.reduce_nth_match(m, n) {
+                    return Some(rule_type);
                 }
             }
         }
-        return false;
+        return None;
     }
 
 
@@ -360,12 +386,12 @@ mod tests {
         let red_term6 = app(lt.clone(),app(app(app(S,x6),K),S));
 
         assert_eq!(reductions.len(), 6);
-        assert!(reductions.contains(&red_term1.flat()));
-        assert!(reductions.contains(&red_term2.flat()));
-        assert!(reductions.contains(&red_term3.flat()));
-        assert!(reductions.contains(&red_term4.flat()));
-        assert!(reductions.contains(&red_term5.flat()));
-        assert!(reductions.contains(&red_term6.flat()));
+        assert!(reductions.contains(&Reduction::new(RuleType::SReducible, red_term1.flat())));
+        assert!(reductions.contains(&Reduction::new(RuleType::SReducible, red_term2.flat())));
+        assert!(reductions.contains(&Reduction::new(RuleType::SReducible, red_term3.flat())));
+        assert!(reductions.contains(&Reduction::new(RuleType::KReducible, red_term4.flat())));
+        assert!(reductions.contains(&Reduction::new(RuleType::SReducible, red_term5.flat())));
+        assert!(reductions.contains(&Reduction::new(RuleType::KReducible, red_term6.flat())));
 
         // TODO: Test that the final graph does not contain the same 
         // term twice

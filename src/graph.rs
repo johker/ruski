@@ -388,10 +388,10 @@ impl Graph {
         // Breakdown potential reductions of the term 
         Term::derive_reductions(term, &mut reductions);
         println!("Found {} potential reductions", reductions.len());
-        for mut red_term in reductions {
+        for mut r in reductions {
             // For each potential reduction: call integrate
-            self.integrate(&mut red_term, level+1);
-            // TODO: Mark edge as potential reduction
+            self.integrate(r.term(), level+1);
+            // TODO: Mark edge as potential reduction using Rule Type encoding
             // TODO: Indicate if reductions have been derived already (node variable)
         }
         if let Some(token) = term.pop() {
