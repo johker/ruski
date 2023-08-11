@@ -206,6 +206,7 @@ impl fmt::Display for Edge {
 #[derive(Debug)]
 pub struct Graph {
     // Subexpressions: Pair of Edges representing Head & Arg
+    // TODO: encode subexpression by weight: ARG=1.0, HEAD=2.0, KRED=3.0, ... 
     pub subexpressions: HashMap<usize, Pair<Edge>>,
     // Reductions: List of Edges representing possible
     // reduction weighted by their likelihood
@@ -372,7 +373,7 @@ impl Graph {
     ///
     /// Return None if the expression is invalid
     pub fn integrate(&mut self, term: &mut Vec<Token>, level: usize) -> Option<usize>  {
-        if level > 1 {
+        if level > 10 {
             return None;
         }
         // Check if term exists
@@ -391,6 +392,7 @@ impl Graph {
             // For each potential reduction: call integrate
             self.integrate(&mut red_term, level+1);
             // TODO: Mark edge as potential reduction
+            // TODO: Indicate if reductions have been derived already (node variable)
         }
         if let Some(token) = term.pop() {
             match token {

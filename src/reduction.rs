@@ -366,7 +366,11 @@ mod tests {
         assert!(reductions.contains(&red_term4.flat()));
         assert!(reductions.contains(&red_term5.flat()));
         assert!(reductions.contains(&red_term6.flat()));
+
+        // TODO: Test that the final graph does not contain the same 
+        // term twice
     }
+
 
     #[test]
     fn term_is_marked_as_reducible() {
