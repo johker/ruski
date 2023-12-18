@@ -1,7 +1,7 @@
 
 /// Graph that represents both subexpressions and the reductions.
 /// Subexpressions allow efficient representation of large terms.
-/// Reduction paths facilitate the calculation of probabilities in 
+/// Reduction paths facilitate the calculation of probabilities in
 /// an artificial chemistry.
 ///
 
@@ -54,10 +54,10 @@ impl Node {
 
 
     /// Return number of expressions
-    pub fn nexpr(& self) -> u32 {
+    pub fn nexpr(&self) -> u32 {
         self.nexpr
     }
-    
+
 }
 impl PartialEq for Node {
     fn eq(&self, other: &Self) -> bool {
@@ -92,7 +92,7 @@ pub enum Sibling {
 }
 
 #[derive(Clone, Debug)]
-pub struct Pair<T> 
+pub struct Pair<T>
 where T: Display {
     head: Option<T>,
     arg: Option<T>,
@@ -200,13 +200,13 @@ impl fmt::Display for Edge {
     }
 }
 
-/// Graph that shows how expressions break down 
+/// Graph that shows how expressions break down
 /// into shared subexpressions and its possible reductions.
 ///
 #[derive(Debug)]
 pub struct Graph {
     // Subexpressions: Pair of Edges representing Head & Arg
-    // TODO: encode subexpression by weight: ARG=1.0, HEAD=2.0, KRED=3.0, ... 
+    // TODO: encode subexpression by weight: ARG=1.0, HEAD=2.0, KRED=3.0, ...
     pub subexpressions: HashMap<usize, Pair<Edge>>,
     // Reductions: List of Edges representing possible
     // reduction weighted by their likelihood
@@ -269,14 +269,14 @@ impl Graph {
         }
     }
 
-    /// Returns the id of the node containing the term or None 
+    /// Returns the id of the node containing the term or None
     /// if no term can be found
     pub fn get_term_id(&self, term: &Vec<Token>) -> Option<usize> {
         self.nodes.iter().find_map(|(key, val)| if val.term_eq(term) { Some(*key) } else { None })
 
     }
 
-    /// Returns the id of the node containing the term or None 
+    /// Returns the id of the node containing the term or None
     /// if no term can be found. Includes the elementary terms S,K and I.
     pub fn contains(&self, term: &Vec<Token>) -> Option<usize> {
         if term.len() == 1 {
@@ -303,7 +303,7 @@ impl Graph {
         self.nodes.len()
     }
 
-    /// Adds an new node with the given term 
+    /// Adds an new node with the given term
     /// and returns its assigned IDs.
     pub fn add_node(&mut self, term: Vec<Token>, is_root: bool) -> usize {
         let node = Node::new(term, is_root);
@@ -336,7 +336,7 @@ impl Graph {
         }
     }
 
-    /// Adds a term to the graph consuming i consuming itt in the process.
+    /// Adds a term to the graph consuming it in the process.
     pub fn add_term(&mut self, mut term: Vec<Token>) -> Result<usize, ParseError> {
         if term.is_empty() {
             return Err(ParseError::EmptyExpression);
@@ -364,15 +364,16 @@ impl Graph {
     ///
     /// use ruski::*
     /// use ruski::parser::Token;
-    /// 
+    ///
     /// let graph = Graph::new();
     /// let term = vec![S,S,S,Lparen,S,S,Rparen,S,S];
     /// assert_eq!(graph.integrate(term), Some(5), 0);
     ///
-    /// # Errors 
+    /// # Errors
     ///
     /// Return None if the expression is invalid
     pub fn integrate(&mut self, term: &mut Vec<Token>, level: usize) -> Option<usize>  {
+        // TODO: Add to configuration
         if level > 10 {
             return None;
         }
@@ -385,7 +386,7 @@ impl Graph {
         // Create new node with connection to first primitive element.
         let node_id = self.add_node((*term.clone()).to_vec(), false);
         let mut reductions = vec![];
-        // Breakdown potential reductions of the term 
+        // Breakdown potential reductions of the term
         Term::derive_reductions(term, &mut reductions);
         println!("Found {} potential reductions", reductions.len());
         for mut r in reductions {
@@ -432,7 +433,7 @@ impl Graph {
             match token {
                 Token::Rparen => level += 1,
                 Token::Lparen => level -= 1,
-                _ => (), 
+                _ => (),
             }
             if level == 0 {
                 return Some(lpos);
@@ -454,15 +455,15 @@ mod tests {
 
     #[test]
     fn lpidx_finds_head_parenthesis_position() {
-        let test_input = "S S S ( S S"; 
+        let test_input = "S S S ( S S";
         let tokens = tokenize(test_input).unwrap();
         assert_eq!(Graph::lpidx(&tokens), Some(3));
 
-        let test_input = "S S S ( S ( S K ) S"; 
+        let test_input = "S S S ( S ( S K ) S";
         let tokens = tokenize(test_input).unwrap();
         assert_eq!(Graph::lpidx(&tokens), Some(3));
 
-        let test_input = "S S S S ( S K ) S"; 
+        let test_input = "S S S S ( S K ) S";
         let tokens = tokenize(test_input).unwrap();
         assert_eq!(Graph::lpidx(&tokens), None);
     }
@@ -481,7 +482,7 @@ mod tests {
     #[test]
     fn integrate_generates_all_nodes() {
         let mut graph = Graph::new();
-        let test_input = "S S S ( S S ) S S"; 
+        let test_input = "S S S ( S S ) S S";
         let mut tokens = tokenize(test_input).unwrap();
         let root = graph.integrate(&mut tokens, 0).unwrap();
 

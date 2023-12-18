@@ -8,10 +8,10 @@ use std::mem;
 
 /// The [evaluation
 /// order](https://writings.stephenwolfram.com/2020/12/combinators-a-centennial-view/#the-question-of-evaluation-order)
-/// of reductions. 
+/// of reductions.
 pub enum Order {
     // Leftmost outermost
-    LO, 
+    LO,
     // Leftmost innermost
     LI,
     // Rightmost outermost
@@ -20,10 +20,10 @@ pub enum Order {
     RI,
     // Outermost leftmost
     OL,
-    // Outermost rightmost 
+    // Outermost rightmost
     OR,
     // Innermost leftmost
-    IL, 
+    IL,
     // Innermost rightmost
     IR,
 }
@@ -53,7 +53,7 @@ impl Reduction {
     }
 }
 
-/// Describes the Rule that applies to a node 
+/// Describes the Rule that applies to a node
 /// in an AST
 #[derive(Debug, PartialEq, Eq)]
 pub enum RuleType {
@@ -61,10 +61,10 @@ pub enum RuleType {
     SReducible,
     // K Rule
     KReducible,
-    // I Rule, 
+    // I Rule,
     IReducible,
     // Not reducible
-    NotReducible, 
+    NotReducible,
 }
 
 pub struct Matches {
@@ -157,10 +157,10 @@ impl Term {
 
 
     /// Performs a reduction on a `Term` with the specified evaluation `Order` and
-    /// an optional limit on the number of reductions (`0` means no limit) and 
+    /// an optional limit on the number of reductions (`0` means no limit) and
     /// returns the reduced `Term`.
     ///
-    /// TODO: Add reductions for evaluation orders 
+    /// TODO: Add reductions for evaluation orders
     pub fn reduce(&mut self, order: Order, limit: usize) -> usize{
         let mut count = 0;
         match order {
@@ -176,7 +176,7 @@ impl Term {
         count
     }
 
-    fn reduce_li(&mut self, limit: usize, count: &mut usize) { 
+    fn reduce_li(&mut self, limit: usize, count: &mut usize) {
         if limit != 0 && *count == limit {
             return;
         }
@@ -209,7 +209,7 @@ impl Term {
                     matches.i += 1;
                 },
                 RuleType::NotReducible => {
-                    // Do nothing 
+                    // Do nothing
                 },
             }
             if let Ok((lhs_ref, rhs_ref)) = self.unapp_ref() {
@@ -247,11 +247,11 @@ impl Term {
    }
 
 
-    /// Applies the S combinator rule to the term at the specified position. 
+    /// Applies the S combinator rule to the term at the specified position.
     /// This function can only be safely executed if the term is SReducible
     /// at the specified position. Increases the count parameter if the operation
     /// was successful.
-    fn apply_srule(&mut self, count: &mut usize) { 
+    fn apply_srule(&mut self, count: &mut usize) {
         let to_apply = mem::replace(self, Null);
         if let Ok((lhs, rhs)) = to_apply.unapp() {
             if let Ok((llhs, rlhs)) = lhs.unapp() {
@@ -264,9 +264,9 @@ impl Term {
         }
     }
 
-    /// Applies the K combinator to the term. This function 
+    /// Applies the K combinator to the term. This function
     /// can only be safely executed if the term is KReducible.
-    fn apply_krule(&mut self, count: &mut usize) { 
+    fn apply_krule(&mut self, count: &mut usize) {
         let to_apply = mem::replace(self, Null);
         if let Ok((lhs, _)) = to_apply.unapp() {
             if let Ok((_, rlhs)) = lhs.unapp() {
@@ -276,9 +276,9 @@ impl Term {
         }
     }
 
-    /// Applies the I combinator to the term. This function 
+    /// Applies the I combinator to the term. This function
     /// can only be safely executed if the term is IReducible.
-    fn apply_irule(&mut self, count: &mut usize) { 
+    fn apply_irule(&mut self, count: &mut usize) {
         let to_apply = mem::replace(self, Null);
         if let Ok((_, rhs)) = to_apply.unapp(){
             let _is_null = mem::replace(self, rhs);
@@ -323,7 +323,7 @@ impl Term {
 
 #[cfg(test)]
 mod tests {
-    use super::*; 
+    use super::*;
     use crate::parser::tokenize;
 
     #[test]
@@ -393,7 +393,7 @@ mod tests {
         assert!(reductions.contains(&Reduction::new(RuleType::SReducible, red_term5.flat())));
         assert!(reductions.contains(&Reduction::new(RuleType::KReducible, red_term6.flat())));
 
-        // TODO: Test that the final graph does not contain the same 
+        // TODO: Test that the final graph does not contain the same
         // term twice
     }
 
