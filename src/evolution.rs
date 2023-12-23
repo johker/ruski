@@ -80,14 +80,22 @@ mod tests {
 
         let test_sim = Simulation {
             volume: 20.0,
+            k_i: 0.2,
+            k_k: 0.3,
+            k_s: 0.5,
             ..Default::default()
         };
         let mut test_graph = Graph::new();
-        let test_input = "S S S ( S S ) S S";
+        let test_input = "S ( S S S ( S S ( K K S ) S ) ) S S ( S ( K S K ) K S )";
         let mut tokens = tokenize(test_input).unwrap();
-        let root = test_graph.integrate(&mut tokens, 0).unwrap();
+        let _root = test_graph.integrate(&mut tokens, 0).unwrap();
 
-        assert_eq!(test_sim.reduction_propensity(&mut test_graph), 0.0);
+        // The test term has 4 admissible S reductions and 2 admissible K reductions
+        // Formula:
+        let expected_prop = 4.0*test_sim.k_s + 2.0*test_sim.k_k;
+
+
+        assert_eq!(test_sim.reduction_propensity(&mut test_graph), expected_prop);
     }
 
 

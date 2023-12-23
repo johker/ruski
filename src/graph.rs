@@ -8,8 +8,11 @@
 use std::fmt;
 use std::fmt::Display;
 use std::collections::HashMap;
+use std::str::ParseBoolError;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use crate::RuleType;
 use crate::parser::{Token, ParseError};
+use crate::reduction::Reduction;
 use crate::term::Term;
 
 static NODE_COUNTER: AtomicUsize = AtomicUsize::new(1);
@@ -22,6 +25,9 @@ pub struct Node {
     // Number of expressions that are not
     // subexpression of another expression
     nexpr: u32,
+    // Indicates whether the node has been integrated
+    // (if max level has been exceeded)
+    integrated: bool,
 }
 
 
@@ -34,6 +40,7 @@ impl Node {
             node_id: NODE_COUNTER.fetch_add(1, Ordering::Relaxed),
             term: term,
             nexpr : if is_root { 1 } else { 0 },
+            integrated: true,
         }
     }
 
@@ -206,11 +213,12 @@ impl fmt::Display for Edge {
 #[derive(Debug)]
 pub struct Graph {
     // Subexpressions: Pair of Edges representing Head & Arg
-    // TODO: encode subexpression by weight: ARG=1.0, HEAD=2.0, KRED=3.0, ...
     pub subexpressions: HashMap<usize, Pair<Edge>>,
-    // Reductions: List of Edges representing possible
-    // reduction weighted by their likelihood
-    pub reductions: HashMap<usize, Vec<Edge>>,
+    // Reductions: List of Edges representing possible reductions
+    // TODO: encode subexpression by weight: ARG=1.0, HEAD=2.0, KRED=3.0, ...
+    pub sr: HashMap<usize, Vec<Edge>>,
+    pub kr: HashMap<usize, Vec<Edge>>,
+    pub ir: HashMap<usize, Vec<Edge>>,
     // Expression Nodes by Id
     pub nodes: HashMap<usize, Node>,
     // Terminal Node I
@@ -261,7 +269,9 @@ impl Graph {
     pub fn new() -> Self {
         Self {
             subexpressions: HashMap::new(),
-            reductions: HashMap::new(),
+            sr: HashMap::new(),
+            kr: HashMap::new(),
+            ir: HashMap::new(),
             nodes: HashMap::new(),
             ti: Node::new(vec![Token::I], false),
             tk: Node::new(vec![Token::K], false),
@@ -312,6 +322,32 @@ impl Graph {
         node_id.clone()
     }
 
+    /// Adds an edge to the reductions according to the rule type of the reduction.
+    pub fn add_reduction_edge(&mut self, reduction: &Reduction, origin_id: &usize, destination_id: &usize) {
+        let new_reduction_edge = Edge::new(*destination_id, 0.0);
+        match reduction.rule() {
+            RuleType::SReducible => {
+                if let Some(s_rdcs) = self.sr.get_mut(origin_id) {
+                    s_rdcs.push(new_reduction_edge);
+                }
+            },
+            RuleType::KReducible => {
+                if let Some(k_rdcs) = self.sr.get_mut(origin_id) {
+                    k_rdcs.push(new_reduction_edge);
+
+                }
+            },
+            RuleType::IReducible => {
+                if let Some(i_rdcs) = self.sr.get_mut(origin_id) {
+                    i_rdcs.push(new_reduction_edge);
+
+                }
+            },
+            RuleType::NotReducible => (),
+        }
+
+    }
+
     /// Adds an edge to a subexpression from the nodes with origin_id to destination_id and assigns the
     /// weight parameter to it.
     pub fn add_subexpr_edge(&mut self, origin_id: &usize, destination_id: &usize, sibling: Sibling, weight: f32) {
@@ -359,6 +395,8 @@ impl Graph {
 
 
     /// Intgrates a new node into the graph
+    /// Returns the ID of the new node or a provisional id of
+    /// 0 if the integration limit is reached.
     ///
     /// # Example
     ///
@@ -373,26 +411,29 @@ impl Graph {
     ///
     /// Return None if the expression is invalid
     pub fn integrate(&mut self, term: &mut Vec<Token>, level: usize) -> Option<usize>  {
-        // TODO: Add to configuration
-        if level > 10 {
-            return None;
-        }
         // Check if term exists
         if let Some(node_id) = self.contains(term) {
             println!("Term already exists");
             // TODO: Update reduction weights?
             return Some(node_id);
         }
+
         // Create new node with connection to first primitive element.
         let node_id = self.add_node((*term.clone()).to_vec(), false);
+        // TODO: Make level a configuration variable
+        if level > 10 {
+            return Some(node_id);
+        }
+
         let mut reductions = vec![];
         // Breakdown potential reductions of the term
         Term::derive_reductions(term, &mut reductions);
         println!("Found {} potential reductions", reductions.len());
         for mut r in reductions {
             // For each potential reduction: call integrate
-            self.integrate(r.term(), level+1);
-            // TODO: Mark edge as potential reduction using Rule Type encoding
+            if let Some(reduced_term_id) = self.integrate(r.term(), level+1) {
+                self.add_reduction_edge(&r, &node_id, &reduced_term_id);
+            }
             // TODO: Indicate if reductions have been derived already (node variable)
         }
         if let Some(token) = term.pop() {
