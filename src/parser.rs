@@ -45,7 +45,7 @@ impl fmt::Display for Token {
     }
 }
 
-/// Attempts to parse the input `&str` as combinator `Term`. 
+/// Attempts to parse the input `&str` as combinator `Term`.
 ///
 /// # Examples
 pub fn parse(input: &str) {
@@ -65,9 +65,9 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
         match c {
             'S' => tokens.push(Token::S),
             'K'=> tokens.push(Token::K),
-            'I' => tokens.push(Token::I), 
+            'I' => tokens.push(Token::I),
             ')' => tokens.push(Token::Rparen),
-            '(' => tokens.push(Token::Lparen), 
+            '(' => tokens.push(Token::Lparen),
             _ => {
                 if c.is_whitespace() {
                     // ignore
@@ -121,10 +121,10 @@ mod tests {
 
     #[test]
     fn tokenize_succeeds_when_valid_input_provided() {
-        let test_input = "( S K S ( S I ) S S )"; 
+        let test_input = "( S K S ( S I ) S S )";
         let tokens = tokenize(test_input);
 
-        assert!(tokens.is_ok()); 
+        assert!(tokens.is_ok());
         assert_eq!(
             tokens.unwrap(),
             vec![
@@ -155,7 +155,7 @@ mod tests {
             Token::Rparen,
             Token::S,
             Token::S,
-        ]; 
+        ];
         let ast = tokens_to_ast(&mut tokens, &mut 0).unwrap();
 
         assert_eq!(ast,app(app(app(app(app(S,S),S),app(S,S)),S),S));

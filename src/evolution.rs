@@ -1,3 +1,5 @@
+use core::num;
+
 use crate::graph::Graph;
 
 #[derive(Default, Debug, PartialEq)]
@@ -44,7 +46,28 @@ impl Simulation {
     /// Unnormalized probability that the reduction reaction will occur
     /// in infinitesimal time.
     fn reduction_propensity(&self, graph: &Graph) -> f32 {
-        let mut red_prp = 0;
+        let mut red_prp = 0.0;
+        for krk in graph.kr.keys() {
+            // For each k reduction key: count reductions and multiply with
+            // number of molecules of this expressions
+            let num_expr = graph.nodes.get(krk).unwrap().nexpr() as f32;
+            let num_red = graph.kr.get(krk).unwrap().len() as f32;
+            red_prp += self.k_k * num_expr * num_red;
+        }
+        for irk in graph.ir.keys() {
+            // For each i reduction key: count reductions and multiply with
+            // number of molecules of this expressions
+            let num_expr = graph.nodes.get(irk).unwrap().nexpr() as f32;
+            let num_red = graph.ir.get(irk).unwrap().len() as f32;
+            red_prp += self.k_i * num_expr * num_red;
+        }
+        for srk in graph.sr.keys() {
+            // For each s reduction key: count reductions and multiply with
+            // number of molecules of this expressions
+            let num_expr = graph.nodes.get(srk).unwrap().nexpr() as f32;
+            let num_red = graph.ir.get(srk).unwrap().len() as f32;
+            red_prp += self.k_i * num_expr * num_red;
+        }
         //for red in graph.reductions {
         //    // TODO: identify matches by outgoing edge encoding
         //}

@@ -55,10 +55,12 @@ impl Reduction {
 
 /// Describes the Rule that applies to a node
 /// in an AST
+/// SReducible contains the reactant z needed for the
+/// reaction: Sxyz + z -> xzyz + S
 #[derive(Debug, PartialEq, Eq)]
 pub enum RuleType {
    // S Rule
-    SReducible,
+    SReducible {z: Term},
     // K Rule
     KReducible,
     // I Rule,
@@ -115,12 +117,13 @@ impl Term {
     fn reduce_nth_match(&mut self, m: &mut usize, n: &mut usize) -> Option<RuleType> {
         if let App(_) = *self {
             match self.is_reducible() {
-                RuleType::SReducible => {
+                RuleType::SReducible {z} => {
                     *m += 1;
                     if m > n {
-                        self.apply_srule(&mut 0);
-                        *n += 1;
-                        return Some(RuleType::SReducible);
+                        if let Some(reactant) = self.apply_srule(&mut 0) {
+                            *n += 1;
+                            return Some(RuleType::SReducible{z: reactant});
+                        }
                     }
                 },
                 RuleType::KReducible => {
@@ -199,7 +202,7 @@ impl Term {
         }
         if let App(_) = *self {
             match self.is_reducible() {
-                RuleType::SReducible => {
+                RuleType::SReducible {z} => {
                     matches.s += 1;
                 },
                 RuleType::KReducible => {
@@ -227,7 +230,7 @@ impl Term {
 
         if let App(_) = *self {
             match self.is_reducible() {
-                RuleType::SReducible => {
+                RuleType::SReducible {z} => {
                     self.apply_srule(count);
                 },
                 RuleType::KReducible => {
@@ -249,19 +252,22 @@ impl Term {
 
     /// Applies the S combinator rule to the term at the specified position.
     /// This function can only be safely executed if the term is SReducible
-    /// at the specified position. Increases the count parameter if the operation
-    /// was successful.
-    fn apply_srule(&mut self, count: &mut usize) {
+    /// at the specified position. Increases the count parameter and returns
+    /// the cloned term if the operation was successful.
+    ///
+    fn apply_srule(&mut self, count: &mut usize) -> Option<Term> {
         let to_apply = mem::replace(self, Null);
         if let Ok((lhs, rhs)) = to_apply.unapp() {
             if let Ok((llhs, rlhs)) = lhs.unapp() {
                 if let Ok((_, rllhs)) = llhs.unapp() {
-                    let new_term = app(app(rllhs,rhs.clone()), app(rlhs,rhs));
+                    let new_term = app(app(rllhs,rhs.clone()), app(rlhs,rhs.clone()));
                     let _is_null = mem::replace(self, new_term);
                     *count += 1;
+                    return Some(rhs.clone());
                 }
             }
         }
+        None
     }
 
     /// Applies the K combinator to the term. This function
@@ -298,7 +304,7 @@ impl Term {
     ///
     /// ```
     pub fn is_reducible(&self) -> RuleType {
-        if let Ok((lhs, _)) = self.unapp_ref() {
+        if let Ok((lhs, rhs)) = self.unapp_ref() {
             match lhs {
                 I => return RuleType::IReducible,
                 _ => (),
@@ -309,7 +315,7 @@ impl Term {
                     App(boxed) => {
                         let (ref lhs, ref _rhs) = **boxed;
                         match lhs {
-                            S => return RuleType::SReducible,
+                            S => return RuleType::SReducible {z: rhs.clone()},
                             _ => (),
                         }
                     },
@@ -360,17 +366,17 @@ mod tests {
         let x1 = app(app(app(S,S),S),app(app(app(S,S),app(app(K,K),S)),S));
         let y1 = S;
         let z1 = S;
-        let red_term1 = app(app(app(x1,z1.clone()),app(y1,z1)),rt.clone());
+        let red_term1 = app(app(app(x1,z1.clone()),app(y1,z1.clone())),rt.clone());
 
         let x2 = S;
         let y2 = S;
         let z2 = app(app(app(S,S),app(app(K,K),S)),S);
-        let red_term2 = app(app(app(app(S,app(app(x2,z2.clone()),app(y2,z2))),S),S),rt.clone());
+        let red_term2 = app(app(app(app(S,app(app(x2,z2.clone()),app(y2,z2.clone()))),S),S),rt.clone());
 
         let x3 = S;
         let y3 = app(app(K,K),S);
         let z3 = S;
-        let red_term3 = app(app(app(app(S,app(app(app(S,S),S),app(app(x3,z3.clone()),app(y3,z3)))),S),S),rt.clone());
+        let red_term3 = app(app(app(app(S,app(app(app(S,S),S),app(app(x3,z3.clone()),app(y3,z3.clone())))),S),S),rt.clone());
 
         let x4 = K;
         let _y4 = S;
@@ -379,18 +385,18 @@ mod tests {
         let x5 = app(app(K,S),K);
         let y5 = K;
         let z5 = S;
-        let red_term5 = app(lt.clone(),app(app(x5,z5.clone()),app(y5,z5)));
+        let red_term5 = app(lt.clone(),app(app(x5,z5.clone()),app(y5,z5.clone())));
 
         let x6 = S;
         let _y6 = K;
         let red_term6 = app(lt.clone(),app(app(app(S,x6),K),S));
 
         assert_eq!(reductions.len(), 6);
-        assert!(reductions.contains(&Reduction::new(RuleType::SReducible, red_term1.flat())));
-        assert!(reductions.contains(&Reduction::new(RuleType::SReducible, red_term2.flat())));
-        assert!(reductions.contains(&Reduction::new(RuleType::SReducible, red_term3.flat())));
+        assert!(reductions.contains(&Reduction::new(RuleType::SReducible { z: z1 }, red_term1.flat())));
+        assert!(reductions.contains(&Reduction::new(RuleType::SReducible { z: z2 }, red_term2.flat())));
+        assert!(reductions.contains(&Reduction::new(RuleType::SReducible { z: z3 }, red_term3.flat())));
         assert!(reductions.contains(&Reduction::new(RuleType::KReducible, red_term4.flat())));
-        assert!(reductions.contains(&Reduction::new(RuleType::SReducible, red_term5.flat())));
+        assert!(reductions.contains(&Reduction::new(RuleType::SReducible {z : z5}, red_term5.flat())));
         assert!(reductions.contains(&Reduction::new(RuleType::KReducible, red_term6.flat())));
 
         // TODO: Test that the final graph does not contain the same
@@ -400,7 +406,7 @@ mod tests {
 
     #[test]
     fn term_is_marked_as_reducible() {
-        assert_eq!(app(app(app(S, I), I), K).is_reducible(), RuleType::SReducible);
+        assert_eq!(app(app(app(S, I), I), K).is_reducible(), RuleType::SReducible { z: K });
         assert_eq!(app(app(K, I), I).is_reducible(), RuleType::KReducible);
         assert_eq!(app(I, K).is_reducible(), RuleType::IReducible);
     }

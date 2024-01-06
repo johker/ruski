@@ -2,10 +2,10 @@
 
 pub use self::Term::*;
 use self::TermError::*;
-use crate::parser::{Token};
+use crate::parser::Token;
 
 /// A combinator term is either a variable representing a combinatory term, a base
-/// (S, K or I) or an application of one term to another. 
+/// (S, K or I) or an application of one term to another.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Term {
     /// Empty Term
@@ -17,7 +17,7 @@ pub enum Term {
     /// Idiot - I - Combinator
     I,
     /// Application
-    App(Box<(Term, Term)>), 
+    App(Box<(Term, Term)>),
 }
 
 
@@ -128,13 +128,13 @@ impl Term {
     }
 }
 
-/// Produces an `App`lication of two given `Term`s without any reduction, 
+/// Produces an `App`lication of two given `Term`s without any reduction,
 /// consuming them in the process.
 ///
 /// # Example
 /// Adds a combinator to a term either as an abstraction or
 /// as application depending on the current state of the term.
-/// The argument is consumed in the process. 
+/// The argument is consumed in the process.
 ///
 /// # Example
 /// ```
@@ -161,7 +161,7 @@ pub fn app(lhs: Term, rhs: Term) -> Term {
 
 #[cfg(test)]
 mod tests {
-    use super::*; 
+    use super::*;
     use crate::parser::tokenize;
 
     #[test]
