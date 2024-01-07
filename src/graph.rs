@@ -98,6 +98,31 @@ pub enum Sibling {
 }
 
 #[derive(Clone, Debug)]
+pub struct ReactionPair<T>
+where T: Display {
+    substrate: Option<T>,
+    reactant: Option<T>,
+}
+
+impl<T: Display> ReactionPair<T> {
+
+    pub fn new(head: Option<T>, arg: Option<T>) -> Self {
+        Self {
+            substrate: head,
+            reactant: arg,
+        }
+    }
+
+    pub fn substrate(&self) -> &Option<T> {
+        &self.substrate
+    }
+
+    pub fn reactant(&self) -> &Option<T> {
+        &self.reactant
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct Pair<T>
 where T: Display {
     head: Option<T>,
@@ -214,7 +239,7 @@ pub struct Graph {
     // Subexpressions: Pair of Edges representing Head & Arg
     pub subexpressions: HashMap<usize, Pair<Edge>>,
     // Reductions: List of Edges representing possible reductions
-    pub sr: HashMap<usize, Vec<Pair<Edge>>>,
+    pub sr: HashMap<usize, Vec<ReactionPair<Edge>>>,
     pub kr: HashMap<usize, Vec<Edge>>,
     pub ir: HashMap<usize, Vec<Edge>>,
     // Expression Nodes by Id
@@ -322,30 +347,28 @@ impl Graph {
 
     /// Adds an edge to the reductions according to the rule type of the reduction.
     pub fn add_reduction_edge(&mut self, reduction: &Reduction, origin_id: &usize, destination_id: &usize, level: usize) {
-        let new_reduction_edge = Edge::new(*destination_id, 0.0);
+        let substrate_edge = Edge::new(*destination_id, 0.0);
         match reduction.rule() {
             RuleType::SReducible { z } => {
                 let mut reactant_tokens = z.flat();
                 if let Some(reactant_node) = self.integrate(&mut reactant_tokens, level) {
-                    let s_reagent_edge = Edge::new(reactant_node, 0.0);
-                    let mut s_reduction_pair = Pair::new(None,None);
-                    s_reduction_pair.set_head(new_reduction_edge);
-                    s_reduction_pair.set_arg(s_reagent_edge);
+                    let reactant_edge = Edge::new(reactant_node, 0.0);
+                    let mut reduction = ReactionPair::new(Some(substrate_edge),Some(reactant_edge));
                     if let Some(s_rdcs) = self.sr.get_mut(origin_id) {
                         reactant_tokens = z.flat();
-                        s_rdcs.push(s_reduction_pair);
+                        s_rdcs.push(reduction);
                     }
                 }
             },
             RuleType::KReducible => {
                 if let Some(k_rdcs) = self.kr.get_mut(origin_id) {
-                    k_rdcs.push(new_reduction_edge);
+                    k_rdcs.push(substrate_edge);
 
                 }
             },
             RuleType::IReducible => {
                 if let Some(i_rdcs) = self.ir.get_mut(origin_id) {
-                    i_rdcs.push(new_reduction_edge);
+                    i_rdcs.push(substrate_edge);
 
                 }
             },
