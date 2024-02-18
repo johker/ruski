@@ -1,0 +1,60 @@
+{
+    "configurations": [
+        {
+            "name": "Launch application",
+            "type": "lldb",
+            "request": "launch",
+            "program": "cargo run",
+            "args": [],
+            "cwd": "${workspaceRoot}/target/debug",
+        },
+        {
+            "name": "Debug all",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=ruski"
+                ],
+                "filter": {
+                    "name": "ruski",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Debug with filter",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=ruski",
+                ],
+                "filter": {
+                    "name": "ruski",
+                    "kind": "lib"
+                }
+            },
+            "args": [
+                "${input:testFilter}"
+            ],
+            "cwd": "${workspaceFolder}"
+        }
+    ],
+    "inputs": [
+        {
+            "id": "testFilter",
+            "description": "Run a specific test by passing a filter",
+            "default": "propensity",
+            "type": "promptString"
+        }
+    ]
+}

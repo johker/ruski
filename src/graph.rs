@@ -1,18 +1,16 @@
-
+use crate::parser::{ParseError, Token};
+use crate::reduction::Reduction;
+use crate::term::Term;
+use crate::RuleType;
+use std::collections::HashMap;
 /// Graph that represents both subexpressions and the reductions.
 /// Subexpressions allow efficient representation of large terms.
 /// Reduction paths facilitate the calculation of probabilities in
 /// an artificial chemistry.
 ///
-
 use std::fmt;
 use std::fmt::Display;
-use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use crate::RuleType;
-use crate::parser::{Token, ParseError};
-use crate::reduction::Reduction;
-use crate::term::Term;
 
 static NODE_COUNTER: AtomicUsize = AtomicUsize::new(1);
 
@@ -29,16 +27,14 @@ pub struct Node {
     integrated: bool,
 }
 
-
 impl Eq for Sibling {}
 
 impl Node {
-
     pub fn new(term: Vec<Token>, is_root: bool) -> Self {
         Self {
             node_id: NODE_COUNTER.fetch_add(1, Ordering::Relaxed),
             term: term,
-            nexpr : if is_root { 1 } else { 0 },
+            nexpr: if is_root { 1 } else { 0 },
             integrated: true,
         }
     }
@@ -58,12 +54,10 @@ impl Node {
         self.nexpr += 1;
     }
 
-
     /// Return number of expressions
     pub fn nexpr(&self) -> u32 {
         self.nexpr
     }
-
 }
 impl PartialEq for Node {
     fn eq(&self, other: &Self) -> bool {
@@ -72,7 +66,6 @@ impl PartialEq for Node {
 }
 
 impl fmt::Display for Node {
-
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut node_string: String = "".to_owned();
         node_string.push_str("ID: ");
@@ -83,11 +76,7 @@ impl fmt::Display for Node {
         }
         node_string.push_str(", #EXPR: ");
         node_string.push_str(&self.nexpr.to_string());
-        write!(
-            f,
-            "N[{}]",
-            node_string
-        )
+        write!(f, "N[{}]", node_string)
     }
 }
 
@@ -99,22 +88,23 @@ pub enum Sibling {
 
 #[derive(Clone, Debug)]
 pub struct ReactionPair<T>
-where T: Display {
-    substrate: Option<T>,
+where
+    T: Display,
+{
+    product: Option<T>,
     reactant: Option<T>,
 }
 
 impl<T: Display> ReactionPair<T> {
-
-    pub fn new(head: Option<T>, arg: Option<T>) -> Self {
+    pub fn new(product: Option<T>, reactant: Option<T>) -> Self {
         Self {
-            substrate: head,
-            reactant: arg,
+            product: product,
+            reactant: reactant,
         }
     }
 
-    pub fn substrate(&self) -> &Option<T> {
-        &self.substrate
+    pub fn product(&self) -> &Option<T> {
+        &self.product
     }
 
     pub fn reactant(&self) -> &Option<T> {
@@ -124,13 +114,14 @@ impl<T: Display> ReactionPair<T> {
 
 #[derive(Clone, Debug)]
 pub struct Pair<T>
-where T: Display {
+where
+    T: Display,
+{
     head: Option<T>,
     arg: Option<T>,
 }
 
 impl<T: Display> Pair<T> {
-
     pub fn new(head: Option<T>, arg: Option<T>) -> Self {
         Self {
             head: head,
@@ -155,9 +146,7 @@ impl<T: Display> Pair<T> {
     }
 }
 
-
 impl<T: Display> fmt::Display for Pair<T> {
-
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut pair_string: String = "".to_owned();
         if let Some(head) = self.get_head() {
@@ -171,11 +160,7 @@ impl<T: Display> fmt::Display for Pair<T> {
         } else {
             pair_string.push_str("None");
         }
-        write!(
-            f,
-            "[{}]",
-            pair_string
-        )
+        write!(f, "[{}]", pair_string)
     }
 }
 
@@ -186,14 +171,13 @@ pub struct Edge {
 }
 
 impl Edge {
-
     pub fn new(node_id: usize, weight: f32) -> Self {
         Self {
             destination_node_id: node_id,
             weight: weight,
         }
     }
-    pub fn dnid(&self) -> usize {
+    pub fn destination_node_id(&self) -> usize {
         self.destination_node_id
     }
 
@@ -201,7 +185,7 @@ impl Edge {
         self.weight
     }
 
-    pub fn set_weight(&mut self, weight : f32) {
+    pub fn set_weight(&mut self, weight: f32) {
         self.weight = weight;
     }
 }
@@ -214,20 +198,14 @@ impl PartialEq for Edge {
 
 impl Eq for Edge {}
 
-
 impl fmt::Display for Edge {
-
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut edge_string: String = "".to_owned();
-            edge_string.push_str("DNID: ");
-            edge_string.push_str(&self.destination_node_id.to_string());
-            edge_string.push_str(", WEIGHT: ");
-            edge_string.push_str(&self.weight.to_string());
-        write!(
-            f,
-            "[{}]",
-            edge_string
-        )
+        edge_string.push_str("DNID: ");
+        edge_string.push_str(&self.destination_node_id.to_string());
+        edge_string.push_str(", WEIGHT: ");
+        edge_string.push_str(&self.weight.to_string());
+        write!(f, "[{}]", edge_string)
     }
 }
 
@@ -288,7 +266,6 @@ impl fmt::Display for Graph {
 }
 
 impl Graph {
-
     pub fn new() -> Self {
         Self {
             subexpressions: HashMap::new(),
@@ -305,30 +282,34 @@ impl Graph {
     /// Returns the id of the node containing the term or None
     /// if no term can be found
     pub fn get_term_id(&self, term: &Vec<Token>) -> Option<usize> {
-        self.nodes.iter().find_map(|(key, val)| if val.term_eq(term) { Some(*key) } else { None })
-
+        self.nodes
+            .iter()
+            .find_map(|(key, val)| if val.term_eq(term) { Some(*key) } else { None })
     }
 
     /// Returns the id of the node containing the term or None
     /// if no term can be found. Includes the elementary terms S,K and I.
     pub fn contains(&self, term: &Vec<Token>) -> Option<usize> {
         if term.len() == 1 {
-           if self.ts.term_eq(term) {
-                return Some(self.ts.id())
-           }
-           if self.tk.term_eq(term) {
-                return Some(self.tk.id())
-           }
-           if self.ti.term_eq(term) {
-                return Some(self.ti.id())
-           }
+            if self.ts.term_eq(term) {
+                return Some(self.ts.id());
+            }
+            if self.tk.term_eq(term) {
+                return Some(self.tk.id());
+            }
+            if self.ti.term_eq(term) {
+                return Some(self.ti.id());
+            }
         }
-       return self.get_term_id(term);
+        return self.get_term_id(term);
     }
 
     /// Checks if id is part of the graph
     fn contains_id(&self, id: &usize) -> bool {
-        self.nodes.contains_key(id) || self.ts.id() == *id || self.tk.id() == *id || self.ti.id() == *id
+        self.nodes.contains_key(id)
+            || self.ts.id() == *id
+            || self.tk.id() == *id
+            || self.ti.id() == *id
     }
 
     /// Returns the number of nodes
@@ -346,40 +327,48 @@ impl Graph {
     }
 
     /// Adds an edge to the reductions according to the rule type of the reduction.
-    pub fn add_reduction_edge(&mut self, reduction: &Reduction, origin_id: &usize, destination_id: &usize, level: usize) {
-        let substrate_edge = Edge::new(*destination_id, 0.0);
+    pub fn add_reduction_edge(
+        &mut self,
+        reduction: &Reduction,
+        origin_id: &usize,
+        destination_id: &usize,
+        level: usize,
+    ) {
+        let product_edge = Edge::new(*destination_id, 0.0);
         match reduction.rule() {
             RuleType::SReducible { z } => {
                 let mut reactant_tokens = z.flat();
                 if let Some(reactant_node) = self.integrate(&mut reactant_tokens, level) {
                     let reactant_edge = Edge::new(reactant_node, 0.0);
-                    let mut reduction = ReactionPair::new(Some(substrate_edge),Some(reactant_edge));
+                    let reduction = ReactionPair::new(Some(product_edge), Some(reactant_edge));
                     if let Some(s_rdcs) = self.sr.get_mut(origin_id) {
-                        reactant_tokens = z.flat();
                         s_rdcs.push(reduction);
                     }
                 }
-            },
+            }
             RuleType::KReducible => {
                 if let Some(k_rdcs) = self.kr.get_mut(origin_id) {
-                    k_rdcs.push(substrate_edge);
-
+                    k_rdcs.push(product_edge);
                 }
-            },
+            }
             RuleType::IReducible => {
                 if let Some(i_rdcs) = self.ir.get_mut(origin_id) {
-                    i_rdcs.push(substrate_edge);
-
+                    i_rdcs.push(product_edge);
                 }
-            },
+            }
             RuleType::NotReducible => (),
         }
-
     }
 
     /// Adds an edge to a subexpression from the nodes with origin_id to destination_id and assigns the
     /// weight parameter to it.
-    pub fn add_subexpr_edge(&mut self, origin_id: &usize, destination_id: &usize, sibling: Sibling, weight: f32) {
+    pub fn add_subexpr_edge(
+        &mut self,
+        origin_id: &usize,
+        destination_id: &usize,
+        sibling: Sibling,
+        weight: f32,
+    ) {
         if self.contains_id(&origin_id) && self.contains_id(&destination_id) {
             let edge = Edge::new(*destination_id, weight);
             if let Some(outgoing_pair) = self.subexpressions.get_mut(&origin_id) {
@@ -390,7 +379,7 @@ impl Graph {
                     outgoing_pair.set_arg(edge);
                 }
             } else {
-                let mut new_pair = Pair::new(None,None);
+                let mut new_pair = Pair::new(None, None);
                 if sibling == Sibling::HEAD {
                     new_pair.set_head(edge);
                 } else {
@@ -410,7 +399,7 @@ impl Graph {
             if let Some(node) = self.nodes.get_mut(&node_id) {
                 node.icr_nexpr();
             }
-            return Ok(node_id)
+            return Ok(node_id);
         } else {
             if let Some(node_id) = self.integrate(&mut term, 0) {
                 if let Some(node) = self.nodes.get_mut(&node_id) {
@@ -424,7 +413,7 @@ impl Graph {
 
     pub fn print_nodes(&self) {
         for n in self.nodes.keys() {
-            println!("{} -> {:?}", n, self.nodes.get(n).unwrap().term );
+            println!("{} -> {:?}", n, self.nodes.get(n).unwrap().term);
         }
     }
 
@@ -444,8 +433,7 @@ impl Graph {
     /// # Errors
     ///
     /// Return None if the expression is invalid
-    pub fn integrate(&mut self, term: &mut Vec<Token>, level: usize) -> Option<usize>  {
-
+    pub fn integrate(&mut self, term: &mut Vec<Token>, level: usize) -> Option<usize> {
         let node_id;
 
         // Check if term exists
@@ -455,7 +443,7 @@ impl Graph {
             if let Some(ni) = self.nodes.get(&existing_node_id) {
                 if ni.integrated {
                     // TODO: Update reduction weights?
-                return Some(existing_node_id);
+                    return Some(existing_node_id);
                 } else {
                     node_id = existing_node_id;
                 }
@@ -465,13 +453,13 @@ impl Graph {
                 return Some(existing_node_id);
             }
         } else {
-            // Create new node with connection to first primitive element.
+            // Create new node with connection to first primitive element. ??
             // TODO: is_root = true for level 0?
             node_id = self.add_node((*term.clone()).to_vec(), false);
         }
 
         // TODO: Make level a configuration variable
-        if level > 10 {
+        if level > 1 {
             return Some(node_id);
         }
 
@@ -480,7 +468,7 @@ impl Graph {
         Term::derive_reductions(term, &mut reductions);
         // For each potential reduction: call integrate
         for mut r in reductions {
-            if let Some(reduced_term_id) = self.integrate(r.term(), level+1) {
+            if let Some(reduced_term_id) = self.integrate(r.term(), level + 1) {
                 self.add_reduction_edge(&r, &node_id, &reduced_term_id, level);
             }
         }
@@ -490,7 +478,7 @@ impl Graph {
                 Token::K => self.add_subexpr_edge(&node_id, &self.tk.id(), Sibling::ARG, 0.0),
                 Token::I => self.add_subexpr_edge(&node_id, &self.ti.id(), Sibling::ARG, 0.0),
                 Token::Rparen => {
-                    if let Some (lparen_pos) = Graph::lpidx(term) {
+                    if let Some(lparen_pos) = Graph::lpidx(term) {
                         let mut arg_term = term.split_off(lparen_pos);
                         arg_term = arg_term.split_off(1); // Remove left parenthesis
                         if let Some(arg_id) = self.integrate(&mut arg_term, level) {
@@ -501,7 +489,7 @@ impl Graph {
                             }
                         }
                     }
-                },
+                }
                 Token::Lparen => (),
             }
             if let Some(node_id_subterm) = self.integrate(term, level) {
@@ -517,7 +505,7 @@ impl Graph {
     /// sequence or None if no left parenthesis can be found.
     pub fn lpidx(term: &Vec<Token>) -> Option<usize> {
         let mut level = 1;
-        let mut lpos = term.len() -1;
+        let mut lpos = term.len() - 1;
         while let Some(token) = term.get(lpos) {
             match token {
                 Token::Rparen => level += 1,
@@ -534,10 +522,7 @@ impl Graph {
         }
         return None;
     }
-
-
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -560,7 +545,7 @@ mod tests {
     }
 
     #[test]
-    fn add_term_increases_count_when_called_twice () {
+    fn add_term_increases_count_when_called_twice() {
         let mut graph = Graph::new();
         let tokens = tokenize(&"S S S ( S S ) S S".to_string()).unwrap();
         let root = graph.add_term(tokens).unwrap();
@@ -577,28 +562,131 @@ mod tests {
         let mut tokens = tokenize(test_input).unwrap();
         let root = graph.integrate(&mut tokens, 0).unwrap();
 
-        let n0 = graph.contains(&tokenize("S S S ( S S ) S S").unwrap()).unwrap();
-        let n1 = graph.contains(&tokenize("S S S ( S S ) S").unwrap()).unwrap();
+        let n0 = graph
+            .contains(&tokenize("S S S ( S S ) S S").unwrap())
+            .unwrap();
+        let n1 = graph
+            .contains(&tokenize("S S S ( S S ) S").unwrap())
+            .unwrap();
         let n2 = graph.contains(&tokenize("S S S ( S S )").unwrap()).unwrap();
         let n3 = graph.contains(&tokenize("S S S").unwrap()).unwrap();
         let n4 = graph.contains(&tokenize("S S").unwrap()).unwrap();
 
-
         assert_eq!(root, n0);
-        assert_eq!(graph.subexpressions.get(&n0).unwrap().get_head().as_ref().unwrap().dnid(), n1);
-        assert_eq!(graph.subexpressions.get(&n0).unwrap().get_arg().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(
+            graph
+                .subexpressions
+                .get(&n0)
+                .unwrap()
+                .get_head()
+                .as_ref()
+                .unwrap()
+                .destination_node_id(),
+            n1
+        );
+        assert_eq!(
+            graph
+                .subexpressions
+                .get(&n0)
+                .unwrap()
+                .get_arg()
+                .as_ref()
+                .unwrap()
+                .destination_node_id(),
+            graph.ts.id()
+        );
 
-        assert_eq!(graph.subexpressions.get(&n1).unwrap().get_head().as_ref().unwrap().dnid(), n2);
-        assert_eq!(graph.subexpressions.get(&n1).unwrap().get_arg().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(
+            graph
+                .subexpressions
+                .get(&n1)
+                .unwrap()
+                .get_head()
+                .as_ref()
+                .unwrap()
+                .destination_node_id(),
+            n2
+        );
+        assert_eq!(
+            graph
+                .subexpressions
+                .get(&n1)
+                .unwrap()
+                .get_arg()
+                .as_ref()
+                .unwrap()
+                .destination_node_id(),
+            graph.ts.id()
+        );
 
-        assert_eq!(graph.subexpressions.get(&n2).unwrap().get_head().as_ref().unwrap().dnid(), n3);
-        assert_eq!(graph.subexpressions.get(&n2).unwrap().get_arg().as_ref().unwrap().dnid(), n4);
+        assert_eq!(
+            graph
+                .subexpressions
+                .get(&n2)
+                .unwrap()
+                .get_head()
+                .as_ref()
+                .unwrap()
+                .destination_node_id(),
+            n3
+        );
+        assert_eq!(
+            graph
+                .subexpressions
+                .get(&n2)
+                .unwrap()
+                .get_arg()
+                .as_ref()
+                .unwrap()
+                .destination_node_id(),
+            n4
+        );
 
-        assert_eq!(graph.subexpressions.get(&n3).unwrap().get_head().as_ref().unwrap().dnid(), n4);
-        assert_eq!(graph.subexpressions.get(&n3).unwrap().get_arg().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(
+            graph
+                .subexpressions
+                .get(&n3)
+                .unwrap()
+                .get_head()
+                .as_ref()
+                .unwrap()
+                .destination_node_id(),
+            n4
+        );
+        assert_eq!(
+            graph
+                .subexpressions
+                .get(&n3)
+                .unwrap()
+                .get_arg()
+                .as_ref()
+                .unwrap()
+                .destination_node_id(),
+            graph.ts.id()
+        );
 
-        assert_eq!(graph.subexpressions.get(&n4).unwrap().get_head().as_ref().unwrap().dnid(), graph.ts.id());
-        assert_eq!(graph.subexpressions.get(&n4).unwrap().get_arg().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(
+            graph
+                .subexpressions
+                .get(&n4)
+                .unwrap()
+                .get_head()
+                .as_ref()
+                .unwrap()
+                .destination_node_id(),
+            graph.ts.id()
+        );
+        assert_eq!(
+            graph
+                .subexpressions
+                .get(&n4)
+                .unwrap()
+                .get_arg()
+                .as_ref()
+                .unwrap()
+                .destination_node_id(),
+            graph.ts.id()
+        );
 
         let mut graph = Graph::new();
         let test_input = "S ( S ( S S ) ( S ( S ( S S ) S ) S ) ) ( S ( S S ) S ( S ( S S ) ( S ( S ( S S ) S ) S ) ) ( S ( S ( S S ) ( S ( S ( S S ) S ) S ) ) ) )";
@@ -607,45 +695,254 @@ mod tests {
 
         let n0 = graph.contains(&tokenize("S ( S ( S S ) ( S ( S ( S S ) S ) S ) ) ( S ( S S ) S ( S ( S S ) ( S ( S ( S S ) S ) S ) ) ( S ( S ( S S ) ( S ( S ( S S ) S ) S ) ) ) )").unwrap()).unwrap();
         let n1 = graph.contains(&tokenize("S ( S S ) S ( S ( S S ) ( S ( S ( S S ) S ) S ) ) ( S ( S ( S S ) ( S ( S ( S S ) S ) S ) ) )").unwrap()).unwrap();
-        let n2 = graph.contains(&tokenize("S ( S S ) S ( S ( S S ) ( S ( S ( S S ) S ) S ) )").unwrap()).unwrap();
-        let n3 = graph.contains(&tokenize("S ( S ( S S ) ( S ( S ( S S ) S ) S ) )").unwrap()).unwrap();
-        let n4 = graph.contains(&tokenize("S ( S S ) ( S ( S ( S S ) S ) S )").unwrap()).unwrap();
-        let n5 = graph.contains(&tokenize("S ( S ( S S ) S ) S").unwrap()).unwrap();
-        let n6 = graph.contains(&tokenize("S ( S ( S S ) S )").unwrap()).unwrap();
+        let n2 = graph
+            .contains(&tokenize("S ( S S ) S ( S ( S S ) ( S ( S ( S S ) S ) S ) )").unwrap())
+            .unwrap();
+        let n3 = graph
+            .contains(&tokenize("S ( S ( S S ) ( S ( S ( S S ) S ) S ) )").unwrap())
+            .unwrap();
+        let n4 = graph
+            .contains(&tokenize("S ( S S ) ( S ( S ( S S ) S ) S )").unwrap())
+            .unwrap();
+        let n5 = graph
+            .contains(&tokenize("S ( S ( S S ) S ) S").unwrap())
+            .unwrap();
+        let n6 = graph
+            .contains(&tokenize("S ( S ( S S ) S )").unwrap())
+            .unwrap();
         let n7 = graph.contains(&tokenize("S ( S S ) S").unwrap()).unwrap();
         let n8 = graph.contains(&tokenize("S ( S S )").unwrap()).unwrap();
         let n9 = graph.contains(&tokenize("S S").unwrap()).unwrap();
 
-
         assert_eq!(root, n0);
-        assert_eq!(graph.subexpressions.get(&n0).unwrap().get_head().as_ref().unwrap().dnid(), n3);
-        assert_eq!(graph.subexpressions.get(&n0).unwrap().get_arg().as_ref().unwrap().dnid(), n1);
+        assert_eq!(
+            graph
+                .subexpressions
+                .get(&n0)
+                .unwrap()
+                .get_head()
+                .as_ref()
+                .unwrap()
+                .destination_node_id(),
+            n3
+        );
+        assert_eq!(
+            graph
+                .subexpressions
+                .get(&n0)
+                .unwrap()
+                .get_arg()
+                .as_ref()
+                .unwrap()
+                .destination_node_id(),
+            n1
+        );
 
-        assert_eq!(graph.subexpressions.get(&n1).unwrap().get_head().as_ref().unwrap().dnid(), n2);
-        assert_eq!(graph.subexpressions.get(&n1).unwrap().get_arg().as_ref().unwrap().dnid(), n3);
+        assert_eq!(
+            graph
+                .subexpressions
+                .get(&n1)
+                .unwrap()
+                .get_head()
+                .as_ref()
+                .unwrap()
+                .destination_node_id(),
+            n2
+        );
+        assert_eq!(
+            graph
+                .subexpressions
+                .get(&n1)
+                .unwrap()
+                .get_arg()
+                .as_ref()
+                .unwrap()
+                .destination_node_id(),
+            n3
+        );
 
-        assert_eq!(graph.subexpressions.get(&n2).unwrap().get_head().as_ref().unwrap().dnid(), n7);
-        assert_eq!(graph.subexpressions.get(&n2).unwrap().get_arg().as_ref().unwrap().dnid(), n4);
+        assert_eq!(
+            graph
+                .subexpressions
+                .get(&n2)
+                .unwrap()
+                .get_head()
+                .as_ref()
+                .unwrap()
+                .destination_node_id(),
+            n7
+        );
+        assert_eq!(
+            graph
+                .subexpressions
+                .get(&n2)
+                .unwrap()
+                .get_arg()
+                .as_ref()
+                .unwrap()
+                .destination_node_id(),
+            n4
+        );
 
-        assert_eq!(graph.subexpressions.get(&n3).unwrap().get_head().as_ref().unwrap().dnid(), graph.ts.id());
-        assert_eq!(graph.subexpressions.get(&n3).unwrap().get_arg().as_ref().unwrap().dnid(), n4);
+        assert_eq!(
+            graph
+                .subexpressions
+                .get(&n3)
+                .unwrap()
+                .get_head()
+                .as_ref()
+                .unwrap()
+                .destination_node_id(),
+            graph.ts.id()
+        );
+        assert_eq!(
+            graph
+                .subexpressions
+                .get(&n3)
+                .unwrap()
+                .get_arg()
+                .as_ref()
+                .unwrap()
+                .destination_node_id(),
+            n4
+        );
 
-        assert_eq!(graph.subexpressions.get(&n4).unwrap().get_head().as_ref().unwrap().dnid(), n8);
-        assert_eq!(graph.subexpressions.get(&n4).unwrap().get_arg().as_ref().unwrap().dnid(), n5);
+        assert_eq!(
+            graph
+                .subexpressions
+                .get(&n4)
+                .unwrap()
+                .get_head()
+                .as_ref()
+                .unwrap()
+                .destination_node_id(),
+            n8
+        );
+        assert_eq!(
+            graph
+                .subexpressions
+                .get(&n4)
+                .unwrap()
+                .get_arg()
+                .as_ref()
+                .unwrap()
+                .destination_node_id(),
+            n5
+        );
 
-        assert_eq!(graph.subexpressions.get(&n5).unwrap().get_head().as_ref().unwrap().dnid(), n6);
-        assert_eq!(graph.subexpressions.get(&n5).unwrap().get_arg().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(
+            graph
+                .subexpressions
+                .get(&n5)
+                .unwrap()
+                .get_head()
+                .as_ref()
+                .unwrap()
+                .destination_node_id(),
+            n6
+        );
+        assert_eq!(
+            graph
+                .subexpressions
+                .get(&n5)
+                .unwrap()
+                .get_arg()
+                .as_ref()
+                .unwrap()
+                .destination_node_id(),
+            graph.ts.id()
+        );
 
-        assert_eq!(graph.subexpressions.get(&n6).unwrap().get_head().as_ref().unwrap().dnid(), graph.ts.id());
-        assert_eq!(graph.subexpressions.get(&n6).unwrap().get_arg().as_ref().unwrap().dnid(), n7);
+        assert_eq!(
+            graph
+                .subexpressions
+                .get(&n6)
+                .unwrap()
+                .get_head()
+                .as_ref()
+                .unwrap()
+                .destination_node_id(),
+            graph.ts.id()
+        );
+        assert_eq!(
+            graph
+                .subexpressions
+                .get(&n6)
+                .unwrap()
+                .get_arg()
+                .as_ref()
+                .unwrap()
+                .destination_node_id(),
+            n7
+        );
 
-        assert_eq!(graph.subexpressions.get(&n7).unwrap().get_head().as_ref().unwrap().dnid(), n8);
-        assert_eq!(graph.subexpressions.get(&n7).unwrap().get_arg().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(
+            graph
+                .subexpressions
+                .get(&n7)
+                .unwrap()
+                .get_head()
+                .as_ref()
+                .unwrap()
+                .destination_node_id(),
+            n8
+        );
+        assert_eq!(
+            graph
+                .subexpressions
+                .get(&n7)
+                .unwrap()
+                .get_arg()
+                .as_ref()
+                .unwrap()
+                .destination_node_id(),
+            graph.ts.id()
+        );
 
-        assert_eq!(graph.subexpressions.get(&n8).unwrap().get_head().as_ref().unwrap().dnid(), graph.ts.id());
-        assert_eq!(graph.subexpressions.get(&n8).unwrap().get_arg().as_ref().unwrap().dnid(), n9);
+        assert_eq!(
+            graph
+                .subexpressions
+                .get(&n8)
+                .unwrap()
+                .get_head()
+                .as_ref()
+                .unwrap()
+                .destination_node_id(),
+            graph.ts.id()
+        );
+        assert_eq!(
+            graph
+                .subexpressions
+                .get(&n8)
+                .unwrap()
+                .get_arg()
+                .as_ref()
+                .unwrap()
+                .destination_node_id(),
+            n9
+        );
 
-        assert_eq!(graph.subexpressions.get(&n9).unwrap().get_head().as_ref().unwrap().dnid(), graph.ts.id());
-        assert_eq!(graph.subexpressions.get(&n9).unwrap().get_arg().as_ref().unwrap().dnid(), graph.ts.id());
+        assert_eq!(
+            graph
+                .subexpressions
+                .get(&n9)
+                .unwrap()
+                .get_head()
+                .as_ref()
+                .unwrap()
+                .destination_node_id(),
+            graph.ts.id()
+        );
+        assert_eq!(
+            graph
+                .subexpressions
+                .get(&n9)
+                .unwrap()
+                .get_arg()
+                .as_ref()
+                .unwrap()
+                .destination_node_id(),
+            graph.ts.id()
+        );
     }
 }
