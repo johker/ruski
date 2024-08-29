@@ -1,7 +1,14 @@
 ## RuSKI
 
-Ruski is a simple, zero-dependency implementation of combinator calculus in Rust. 
-It is based on the crate [lambda_calculus](https://github.com/ljedrz/lambda_calculus).
+Ruski is a simple, zero-dependency implementation of combinator calculus in Rust.
+It is based on the crate [lambda_calculus](https://github.com/ljedrz/lambda_calculus) and
+adds elements from [Wolfram](https://writings.stephenwolfram.com/2020/12/combinators-a-centennial-view/)
 
-The terms are modeled in a graph which starts from a node representing the whole expression and breaks down into shared subexpressions. 
+
+### Features
+
+* Parser for SKI expressions
+* β reduction of SKI expressions (currently: leftmost outermost, leftmost innermost)
+* Tree representation of expressions with shared subexpressions.
+* Graph representation of reductions with shard reductions paths (draft)
 
