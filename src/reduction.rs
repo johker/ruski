@@ -108,7 +108,7 @@ impl Term {
     fn reduce_nth_match(&mut self, m: &mut usize, n: &mut usize) -> Option<RuleType> {
         if let App(_) = *self {
             match self.is_reducible() {
-                RuleType::SReducible { z } => {
+                RuleType::SReducible { z: _ } => {
                     *m += 1;
                     if m > n {
                         if let Some(reactant) = self.apply_srule(&mut 0) {
@@ -188,7 +188,7 @@ impl Term {
         }
         if let App(_) = *self {
             match self.is_reducible() {
-                RuleType::SReducible { z } => {
+                RuleType::SReducible { z: _ } => {
                     matches.s += 1;
                 }
                 RuleType::KReducible => {
@@ -215,7 +215,7 @@ impl Term {
 
         if let App(_) = *self {
             match self.is_reducible() {
-                RuleType::SReducible { z } => {
+                RuleType::SReducible { z: _ } => {
                     self.apply_srule(count);
                 }
                 RuleType::KReducible => {
