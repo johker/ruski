@@ -1,6 +1,6 @@
 [package]
 name = "ruski"
-version = "0.0.1"
+version = "0.0.2"
 authors = ["johker <johannes.kern@zoho.com>"]
 edition = "2021"
 description = "RuSKI is a simple implementation of combinator calculus."
