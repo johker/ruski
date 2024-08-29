@@ -1,10 +1,8 @@
-
-pub mod term;
+pub mod graph;
 pub mod parser;
 pub mod reduction;
-pub mod graph;
-pub mod evolution;
+pub mod term;
 
-pub use self::term::Term::*;
 pub use self::reduction::RuleType;
-pub use self::term::{Term, app, expand};
+pub use self::term::Term::*;
+pub use self::term::{app, expand, Term};

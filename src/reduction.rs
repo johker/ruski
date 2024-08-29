@@ -1,9 +1,8 @@
-
 pub use self::Order::*;
 pub use self::RuleType::*;
+use crate::parser::{tokens_to_ast, Token};
 use crate::term::Term::*;
-use crate::parser::{Token, tokens_to_ast};
-use crate::term::{Term, app};
+use crate::term::{app, Term};
 use std::mem;
 
 /// The [evaluation
@@ -36,7 +35,6 @@ pub struct Reduction {
 }
 
 impl Reduction {
-
     pub fn new(rule_type: RuleType, reduced_term: Vec<Token>) -> Self {
         Reduction {
             rule_type: rule_type,
@@ -59,8 +57,8 @@ impl Reduction {
 /// reaction: Sxyz + z -> xzyz + S
 #[derive(Debug, PartialEq, Eq)]
 pub enum RuleType {
-   // S Rule
-    SReducible {z: Term},
+    // S Rule
+    SReducible { z: Term },
     // K Rule
     KReducible,
     // I Rule,
@@ -76,23 +74,16 @@ pub struct Matches {
 }
 
 impl Matches {
-
     pub fn new() -> Self {
-        Matches {
-            s: 0,
-            k: 0,
-            i: 0,
-        }
+        Matches { s: 0, k: 0, i: 0 }
     }
 
     pub fn sum(&self) -> usize {
-       self.s + self.k + self.i
+        self.s + self.k + self.i
     }
 }
 
-
 impl Term {
-
     /// Reduces the AST of the passed token sequence for every possible match
     /// and pushes the flat token sequence to the reductions vector.
     pub fn derive_reductions(tokens: &mut Vec<Token>, reductions: &mut Vec<Reduction>) {
@@ -117,15 +108,15 @@ impl Term {
     fn reduce_nth_match(&mut self, m: &mut usize, n: &mut usize) -> Option<RuleType> {
         if let App(_) = *self {
             match self.is_reducible() {
-                RuleType::SReducible {z} => {
+                RuleType::SReducible { z } => {
                     *m += 1;
                     if m > n {
                         if let Some(reactant) = self.apply_srule(&mut 0) {
                             *n += 1;
-                            return Some(RuleType::SReducible{z: reactant});
+                            return Some(RuleType::SReducible { z: reactant });
                         }
                     }
-                },
+                }
                 RuleType::KReducible => {
                     *m += 1;
                     if m > n {
@@ -133,15 +124,15 @@ impl Term {
                         *n += 1;
                         return Some(RuleType::KReducible);
                     }
-                },
+                }
                 RuleType::IReducible => {
                     *m += 1;
                     if m > n {
                         self.apply_irule(&mut 0);
                         *n += 1;
                         return Some(RuleType::IReducible);
-                   }
-                },
+                    }
+                }
                 RuleType::NotReducible => (),
             }
             if let Ok((ref mut lhs_ref, ref mut rhs_ref)) = self.unapp_mut() {
@@ -156,15 +147,12 @@ impl Term {
         return None;
     }
 
-
-
-
     /// Performs a reduction on a `Term` with the specified evaluation `Order` and
     /// an optional limit on the number of reductions (`0` means no limit) and
     /// returns the reduced `Term`.
     ///
     /// TODO: Add reductions for evaluation orders
-    pub fn reduce(&mut self, order: Order, limit: usize) -> usize{
+    pub fn reduce(&mut self, order: Order, limit: usize) -> usize {
         let mut count = 0;
         match order {
             LO => self.reduce_lo(limit, &mut count),
@@ -189,9 +177,7 @@ impl Term {
             rhs_ref.reduce_li(limit, count);
         }
 
-        if let App(_) = *self {
-
-        }
+        if let App(_) = *self {}
     }
 
     /// Count matches up to the defined limit (or indefinitevly for limit 0)
@@ -202,25 +188,24 @@ impl Term {
         }
         if let App(_) = *self {
             match self.is_reducible() {
-                RuleType::SReducible {z} => {
+                RuleType::SReducible { z } => {
                     matches.s += 1;
-                },
+                }
                 RuleType::KReducible => {
                     matches.k += 1;
-                },
+                }
                 RuleType::IReducible => {
                     matches.i += 1;
-                },
+                }
                 RuleType::NotReducible => {
                     // Do nothing
-                },
+                }
             }
             if let Ok((lhs_ref, rhs_ref)) = self.unapp_ref() {
                 lhs_ref.count_matches(limit, matches);
                 rhs_ref.count_matches(limit, matches);
             }
-       }
-
+        }
     }
 
     fn reduce_lo(&mut self, limit: usize, count: &mut usize) {
@@ -230,25 +215,24 @@ impl Term {
 
         if let App(_) = *self {
             match self.is_reducible() {
-                RuleType::SReducible {z} => {
+                RuleType::SReducible { z } => {
                     self.apply_srule(count);
-                },
+                }
                 RuleType::KReducible => {
                     self.apply_krule(count);
-                },
+                }
                 RuleType::IReducible => {
                     self.apply_irule(count);
-                },
+                }
                 RuleType::NotReducible => {
                     if let Ok((ref mut lhs_ref, ref mut rhs_ref)) = self.unapp_mut() {
                         lhs_ref.reduce_lo(limit, count);
                         rhs_ref.reduce_lo(limit, count);
                     }
-                },
+                }
             }
-       }
-   }
-
+        }
+    }
 
     /// Applies the S combinator rule to the term at the specified position.
     /// This function can only be safely executed if the term is SReducible
@@ -260,7 +244,7 @@ impl Term {
         if let Ok((lhs, rhs)) = to_apply.unapp() {
             if let Ok((llhs, rlhs)) = lhs.unapp() {
                 if let Ok((_, rllhs)) = llhs.unapp() {
-                    let new_term = app(app(rllhs,rhs.clone()), app(rlhs,rhs.clone()));
+                    let new_term = app(app(rllhs, rhs.clone()), app(rlhs, rhs.clone()));
                     let _is_null = mem::replace(self, new_term);
                     *count += 1;
                     return Some(rhs.clone());
@@ -286,7 +270,7 @@ impl Term {
     /// can only be safely executed if the term is IReducible.
     fn apply_irule(&mut self, count: &mut usize) {
         let to_apply = mem::replace(self, Null);
-        if let Ok((_, rhs)) = to_apply.unapp(){
+        if let Ok((_, rhs)) = to_apply.unapp() {
             let _is_null = mem::replace(self, rhs);
             *count += 1;
         }
@@ -300,7 +284,7 @@ impl Term {
     /// ```
     /// use ruski::*;
     ///
-    /// assert_eq!(app(app(app(S, I), I), K).is_reducible(), RuleType::SReducible);
+    /// assert_eq!(app(app(app(S, I), I), K).is_reducible(), RuleType::SReducible {z: Term::K});
     ///
     /// ```
     pub fn is_reducible(&self) -> RuleType {
@@ -315,10 +299,10 @@ impl Term {
                     App(boxed) => {
                         let (ref lhs, ref _rhs) = **boxed;
                         match lhs {
-                            S => return RuleType::SReducible {z: rhs.clone()},
+                            S => return RuleType::SReducible { z: rhs.clone() },
                             _ => (),
                         }
-                    },
+                    }
                     _ => (),
                 }
             }
@@ -359,54 +343,107 @@ mod tests {
         //
         //
 
-        let rt = app(app(app(S,app(app(K,S),K)),K),S);
-        let lt = app(app(app(S,app(app(app(S,S),S),app(app(app(S,S),app(app(K,K),S)),S))),S),S);
-        let _test_term = app(lt.clone(),rt.clone());
+        let rt = app(app(app(S, app(app(K, S), K)), K), S);
+        let lt = app(
+            app(
+                app(
+                    S,
+                    app(app(app(S, S), S), app(app(app(S, S), app(app(K, K), S)), S)),
+                ),
+                S,
+            ),
+            S,
+        );
+        let _test_term = app(lt.clone(), rt.clone());
 
-        let x1 = app(app(app(S,S),S),app(app(app(S,S),app(app(K,K),S)),S));
+        let x1 = app(app(app(S, S), S), app(app(app(S, S), app(app(K, K), S)), S));
         let y1 = S;
         let z1 = S;
-        let red_term1 = app(app(app(x1,z1.clone()),app(y1,z1.clone())),rt.clone());
+        let red_term1 = app(app(app(x1, z1.clone()), app(y1, z1.clone())), rt.clone());
 
         let x2 = S;
         let y2 = S;
-        let z2 = app(app(app(S,S),app(app(K,K),S)),S);
-        let red_term2 = app(app(app(app(S,app(app(x2,z2.clone()),app(y2,z2.clone()))),S),S),rt.clone());
+        let z2 = app(app(app(S, S), app(app(K, K), S)), S);
+        let red_term2 = app(
+            app(
+                app(app(S, app(app(x2, z2.clone()), app(y2, z2.clone()))), S),
+                S,
+            ),
+            rt.clone(),
+        );
 
         let x3 = S;
-        let y3 = app(app(K,K),S);
+        let y3 = app(app(K, K), S);
         let z3 = S;
-        let red_term3 = app(app(app(app(S,app(app(app(S,S),S),app(app(x3,z3.clone()),app(y3,z3.clone())))),S),S),rt.clone());
+        let red_term3 = app(
+            app(
+                app(
+                    app(
+                        S,
+                        app(
+                            app(app(S, S), S),
+                            app(app(x3, z3.clone()), app(y3, z3.clone())),
+                        ),
+                    ),
+                    S,
+                ),
+                S,
+            ),
+            rt.clone(),
+        );
 
         let x4 = K;
         let _y4 = S;
-        let red_term4 = app(app(app(app(S,app(app(app(S,S),S),app(app(app(S,S),x4),S))),S),S),rt.clone());
+        let red_term4 = app(
+            app(
+                app(
+                    app(S, app(app(app(S, S), S), app(app(app(S, S), x4), S))),
+                    S,
+                ),
+                S,
+            ),
+            rt.clone(),
+        );
 
-        let x5 = app(app(K,S),K);
+        let x5 = app(app(K, S), K);
         let y5 = K;
         let z5 = S;
-        let red_term5 = app(lt.clone(),app(app(x5,z5.clone()),app(y5,z5.clone())));
+        let red_term5 = app(lt.clone(), app(app(x5, z5.clone()), app(y5, z5.clone())));
 
         let x6 = S;
         let _y6 = K;
-        let red_term6 = app(lt.clone(),app(app(app(S,x6),K),S));
+        let red_term6 = app(lt.clone(), app(app(app(S, x6), K), S));
 
         assert_eq!(reductions.len(), 6);
-        assert!(reductions.contains(&Reduction::new(RuleType::SReducible { z: z1 }, red_term1.flat())));
-        assert!(reductions.contains(&Reduction::new(RuleType::SReducible { z: z2 }, red_term2.flat())));
-        assert!(reductions.contains(&Reduction::new(RuleType::SReducible { z: z3 }, red_term3.flat())));
+        assert!(reductions.contains(&Reduction::new(
+            RuleType::SReducible { z: z1 },
+            red_term1.flat()
+        )));
+        assert!(reductions.contains(&Reduction::new(
+            RuleType::SReducible { z: z2 },
+            red_term2.flat()
+        )));
+        assert!(reductions.contains(&Reduction::new(
+            RuleType::SReducible { z: z3 },
+            red_term3.flat()
+        )));
         assert!(reductions.contains(&Reduction::new(RuleType::KReducible, red_term4.flat())));
-        assert!(reductions.contains(&Reduction::new(RuleType::SReducible {z : z5}, red_term5.flat())));
+        assert!(reductions.contains(&Reduction::new(
+            RuleType::SReducible { z: z5 },
+            red_term5.flat()
+        )));
         assert!(reductions.contains(&Reduction::new(RuleType::KReducible, red_term6.flat())));
 
         // TODO: Test that the final graph does not contain the same
         // term twice
     }
 
-
     #[test]
     fn term_is_marked_as_reducible() {
-        assert_eq!(app(app(app(S, I), I), K).is_reducible(), RuleType::SReducible { z: K });
+        assert_eq!(
+            app(app(app(S, I), I), K).is_reducible(),
+            RuleType::SReducible { z: K }
+        );
         assert_eq!(app(app(K, I), I).is_reducible(), RuleType::KReducible);
         assert_eq!(app(I, K).is_reducible(), RuleType::IReducible);
     }
@@ -420,7 +457,7 @@ mod tests {
 
     #[test]
     fn subterm_is_reduced_by_srule() {
-        let mut test_term = app(I,app(app(app(S, I), I), K));
+        let mut test_term = app(I, app(app(app(S, I), I), K));
         if let Ok((_remainder, term_to_reduce)) = test_term.unapp_mut() {
             term_to_reduce.apply_srule(&mut 0);
         }
@@ -438,13 +475,22 @@ mod tests {
     fn term_is_reduced_by_irule() {
         let mut test_term = app(I, K);
         test_term.apply_irule(&mut 0);
-        assert_eq!(test_term,K);
+        assert_eq!(test_term, K);
     }
 
     #[test]
     fn matches_are_counted_correctly() {
-        let lterm = app(app(app(S,app(app(app(S,S),S),app(app(app(S,S),app(app(K,K),S)),S))),S),S);
-        let rterm = app(app(app(S,app(app(K,S),K)),K),S);
+        let lterm = app(
+            app(
+                app(
+                    S,
+                    app(app(app(S, S), S), app(app(app(S, S), app(app(K, K), S)), S)),
+                ),
+                S,
+            ),
+            S,
+        );
+        let rterm = app(app(app(S, app(app(K, S), K)), K), S);
         let test_term = app(lterm, rterm);
         let mut matches = Matches::new();
         let limit = 100;
